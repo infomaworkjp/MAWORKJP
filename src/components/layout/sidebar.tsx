@@ -3,7 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { PanelLeft, Users, Building, CalendarDays, Mail, FileText, BarChart3, BellRing, Stethoscope, ShieldCheck } from "lucide-react"
+import { PanelLeft, Users, Building, CalendarDays, Mail, FileText, BarChart3, BellRing, Stethoscope, ShieldCheck, Languages, HeartHandshake, Gem } from "lucide-react"
 
 import { Sidebar, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarMenuSub, SidebarMenuSubButton, SidebarGroup, SidebarHeader, SidebarSeparator, SidebarGroupLabel, SidebarFooter } from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils"
@@ -57,26 +57,49 @@ const companyNavItems = [
     title: "自社プロフィール",
     href: "/dashboard/companies",
     icon: Building,
+    tier: "light",
   },
   {
     title: "従業員一覧",
     href: "/dashboard/companies?tab=employees",
     icon: Users,
+    tier: "light",
   },
   {
-    title: "在留資格ステータス",
+    title: "基本管理",
     href: "/dashboard/companies?tab=visa",
-    icon: ShieldCheck,
-  },
-  {
-    title: "契約・プラン管理",
-    href: "/dashboard/companies?tab=plan",
     icon: CalendarDays,
+    tier: "light",
   },
   {
-    title: "安全教育・書類",
+    title: "翻訳通訳相談",
+    href: "/dashboard",
+    icon: Languages,
+    tier: "standard",
+  },
+  {
+    title: "雇用契約サポート",
+    href: "/dashboard",
+    icon: FileText,
+    tier: "standard",
+  },
+  {
+    title: "法令・安全教育",
     href: "/dashboard/companies?tab=templates",
-    icon: Mail,
+    icon: ShieldCheck,
+    tier: "standard",
+  },
+  {
+    title: "現場労務対応",
+    href: "/dashboard",
+    icon: HeartHandshake,
+    tier: "premium",
+  },
+  {
+    title: "上位プラン専用",
+    href: "/dashboard/companies?tab=executive",
+    icon: Gem,
+    tier: "premium",
   },
 ]
 
@@ -152,71 +175,91 @@ export function SidebarNav({ className }: { className?: string }) {
           </SidebarGroup>
         )}
 
-        {user?.role === "company" && (
-          <SidebarGroup>
-            <SidebarGroupLabel>企業用メニュー</SidebarGroupLabel>
-            {companyNavItems.map((item) => {
-              let targetHref = item.href;
-              if (item.title === "自社プロフィール" && user.companyId) {
-                targetHref = `/dashboard/companies/${user.companyId}`;
-              } else if (item.title === "従業員一覧" && user.companyId) {
-                targetHref = `/dashboard/companies/${user.companyId}?tab=employees`;
-              } else if (item.title === "在留資格ステータス" && user.companyId) {
-                targetHref = `/dashboard/companies/${user.companyId}?tab=visa`;
-              } else if (item.title === "契約・プラン管理" && user.companyId) {
-                targetHref = `/dashboard/companies/${user.companyId}?tab=profile`; // profile tab covers plan
-              } else if (item.title === "安全教育・書類" && user.companyId) {
-                targetHref = `/dashboard/companies/${user.companyId}?tab=templates`;
-              }
-              
-              // Gating Logic
-              const isVisaAllowed = ["basic", "standard", "advance", "pro", "premium"].includes(planType) || activeOptions.includes("visa_scanner");
-              const isSafetyAllowed = ["pro", "premium"].includes(planType) || activeOptions.includes("safety_education");
-              
-              let isLocked = false;
-              if (item.title === "在留資格ステータス" && !isVisaAllowed) {
-                isLocked = true;
-              } else if (item.title === "安全教育・書類" && !isSafetyAllowed) {
-                isLocked = true;
-              }
+        {user?.role === "company" && (() => {
+          const getPlanCategory = (plan: string): "light" | "standard" | "premium" => {
+            const p = (plan || "entry").toLowerCase();
+            if (p === "premium") return "premium";
+            if (p === "standard" || p === "advance" || p === "pro") return "standard";
+            return "light";
+          };
 
-              const isActive = pathname === targetHref || pathname + window?.location?.search === targetHref || (targetHref.includes("?") && pathname === targetHref.split("?")[0]);
+          const category = getPlanCategory(planType);
+          const visibleItems = companyNavItems.filter((item: any) => {
+            if (category === "light") {
+              return item.tier === "light";
+            }
+            if (category === "standard") {
+              return item.tier === "light" || item.tier === "standard";
+            }
+            return true; // premium sees all
+          });
 
-              const handleItemClick = (e: React.MouseEvent) => {
-                if (isLocked) {
-                  e.preventDefault();
-                  toast({
-                    title: "プラン制限",
-                    description: `「${item.title}」機能はお使いのプラン（${planType.toUpperCase()}）または契約オプションではご利用いただけません。アップグレードをご検討ください。`,
-                    variant: "destructive",
-                  });
+          return (
+            <SidebarGroup>
+              <SidebarGroupLabel>企業用メニュー</SidebarGroupLabel>
+              {visibleItems.map((item) => {
+                let targetHref = item.href;
+                if (item.title === "自社プロフィール" && user.companyId) {
+                  targetHref = `/dashboard/companies/${user.companyId}?tab=profile`;
+                } else if (item.title === "従業員一覧" && user.companyId) {
+                  targetHref = `/dashboard/companies/${user.companyId}?tab=employees`;
+                } else if (item.title === "基本管理" && user.companyId) {
+                  targetHref = `/dashboard/companies/${user.companyId}?tab=visa`;
+                } else if (item.title === "法令・安全教育" && user.companyId) {
+                  targetHref = `/dashboard/companies/${user.companyId}?tab=templates`;
+                } else if (item.title === "上位プラン専用" && user.companyId) {
+                  targetHref = `/dashboard/companies/${user.companyId}?tab=executive`;
                 }
-              };
 
-              return (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    size="lg"
-                    isActive={isActive}
-                    tooltip={isLocked ? `${item.title} (ロック中)` : item.title}
-                    className={cn(isLocked && "opacity-50")}
-                  >
-                    <Link href={targetHref} onClick={handleItemClick}>
-                      <item.icon className="h-5 w-5" />
-                      {!isCollapsed && (
-                        <span className="flex items-center justify-between w-full">
-                          <span>{item.title}</span>
-                          {isLocked && <Lock className="h-3 w-3 text-muted-foreground ml-2 shrink-0" />}
-                        </span>
-                      )}
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              );
-            })}
-          </SidebarGroup>
-        )}
+                // Gating Logic
+                const isVisaAllowed = ["basic", "standard", "advance", "pro", "premium"].includes(planType) || activeOptions.includes("visa_scanner");
+                const isSafetyAllowed = ["pro", "premium"].includes(planType) || activeOptions.includes("safety_education");
+                
+                let isLocked = false;
+                if (item.title === "基本管理" && !isVisaAllowed) {
+                  isLocked = true;
+                } else if (item.title === "法令・安全教育" && !isSafetyAllowed) {
+                  isLocked = true;
+                }
+
+                const isActive = pathname === targetHref || pathname + (typeof window !== "undefined" ? window.location.search : "") === targetHref || (targetHref.includes("?") && pathname === targetHref.split("?")[0]);
+
+                const handleItemClick = (e: React.MouseEvent) => {
+                  if (isLocked) {
+                    e.preventDefault();
+                    toast({
+                      title: "プラン制限",
+                      description: `「${item.title}」機能はお使いのプラン（${planType.toUpperCase()}）または契約オプションではご利用いただけません。アップグレードをご検討ください。`,
+                      variant: "destructive",
+                    });
+                  }
+                };
+
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      size="lg"
+                      isActive={isActive}
+                      tooltip={isLocked ? `${item.title} (ロック中)` : item.title}
+                      className={cn(isLocked && "opacity-50")}
+                    >
+                      <Link href={targetHref} onClick={handleItemClick}>
+                        <item.icon className="h-5 w-5" />
+                        {!isCollapsed && (
+                          <span className="flex items-center justify-between w-full">
+                            <span>{item.title}</span>
+                            {isLocked && <Lock className="h-3 w-3 text-muted-foreground ml-2 shrink-0" />}
+                          </span>
+                        )}
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarGroup>
+          );
+        })()}
       </SidebarMenu>
 
       <SidebarSeparator />
