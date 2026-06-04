@@ -74,7 +74,7 @@ const companyNavItems = [
   },
   {
     title: "翻訳通訳相談",
-    href: "/dashboard",
+    href: "/dashboard/consultation",
     icon: Languages,
     minLevel: 1,
   },

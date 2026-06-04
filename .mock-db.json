@@ -639,6 +639,90 @@
       "totalPrice": 8000,
       "status": "completed",
       "createdAt": "2026-06-03T12:36:25.472Z"
+    },
+    {
+      "id": "req-t1",
+      "companyId": "company-r5hajd5",
+      "type": "translation",
+      "details": "翻訳依頼: 雇用契約書 (ベトナム語 A4 2枚)",
+      "pages": 2,
+      "scheduledDate": "2026-06-01",
+      "basePrice": 16000,
+      "surcharge": 0,
+      "totalPrice": 16000,
+      "status": "completed",
+      "createdAt": "2026-06-01T10:00:00.000Z"
+    },
+    {
+      "id": "req-t2",
+      "companyId": "company-r5hajd5",
+      "type": "translation",
+      "details": "翻訳依頼: 社内安全管理ルール (英語 A4 3枚)",
+      "pages": 3,
+      "scheduledDate": "2026-05-15",
+      "basePrice": 24000,
+      "surcharge": 0,
+      "totalPrice": 24000,
+      "status": "completed",
+      "createdAt": "2026-05-15T14:30:00.000Z"
+    },
+    {
+      "id": "req-i1",
+      "companyId": "company-r5hajd5",
+      "type": "interpretation",
+      "details": "通訳対応: 現場受け入れ安全講習 (3時間)",
+      "hours": 3,
+      "scheduledDate": "2026-05-20",
+      "basePrice": 30000,
+      "surcharge": 0,
+      "totalPrice": 30000,
+      "status": "completed",
+      "createdAt": "2026-05-20T14:00:00.000Z"
+    },
+    {
+      "id": "req-i2",
+      "companyId": "company-r5hajd5",
+      "type": "interpretation",
+      "details": "通訳対応: 宿舎入居ルール説明・三者面談 (1.5時間)",
+      "hours": 1.5,
+      "scheduledDate": "2026-06-03",
+      "basePrice": 15000,
+      "surcharge": 0,
+      "totalPrice": 15000,
+      "status": "completed",
+      "createdAt": "2026-06-03T10:15:00.000Z"
+    },
+    {
+      "id": "req-c1",
+      "companyId": "company-r5hajd5",
+      "type": "consultation",
+      "details": "相談対応: 特定技能「特定技能1号」の更新手続きと必要書類について (窓口相談)",
+      "status": "completed",
+      "createdAt": "2026-06-02T16:30:00.000Z"
+    },
+    {
+      "id": "req-c2",
+      "companyId": "company-r5hajd5",
+      "type": "consultation",
+      "details": "相談対応: 新規従業員の宿舎入居スケジュールの調整について (LINE相談)",
+      "status": "in_progress",
+      "createdAt": "2026-06-04T09:00:00.000Z"
+    },
+    {
+      "id": "req-e1",
+      "companyId": "company-r5hajd5",
+      "type": "emergency",
+      "details": "緊急対応: 宿舎での急病に伴う救急搬送支援および夜間病院窓口通訳対応",
+      "status": "completed",
+      "createdAt": "2026-05-28T23:15:00.000Z"
+    },
+    {
+      "id": "req-e2",
+      "companyId": "company-r5hajd5",
+      "type": "emergency",
+      "details": "緊急対応: 休日のトラブル発生に伴う関係先への同行と現地確認対応",
+      "status": "in_progress",
+      "createdAt": "2026-06-05T01:30:00.000Z"
     }
   ]
 }

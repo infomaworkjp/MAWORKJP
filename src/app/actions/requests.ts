@@ -316,3 +316,102 @@ export async function incrementLineConsultationUsage(companyId: string) {
   }
 }
 
+// 7. Submit Consultation Request
+export async function submitConsultationRequest(
+  companyId: string,
+  data: {
+    description: string;
+    method: string;
+  }
+) {
+  try {
+    if (!companyId || !data.description || !data.method) {
+      throw new Error("必須項目が不足しています");
+    }
+
+    const requestLog = {
+      id: "req-" + Math.random().toString(36).substring(2, 9),
+      companyId,
+      type: "consultation",
+      details: `相談対応: ${data.description} (${data.method}相談)`,
+      status: "pending",
+      createdAt: new Date().toISOString(),
+    };
+
+    if (isMock) {
+      const dbData = readMockDB();
+      const compIdx = dbData.companies.findIndex((c) => c.id === companyId);
+      if (compIdx === -1) throw new Error("企業が見つかりません");
+
+      const comp = dbData.companies[compIdx];
+      comp.usage_line = (comp.usage_line || 0) + 1;
+      comp.updatedAt = new Date().toISOString();
+
+      dbData.requests = dbData.requests || [];
+      dbData.requests.push(requestLog);
+      writeMockDB(dbData);
+    } else {
+      const compRef = doc(db, "companies", companyId);
+      const compSnap = await getDoc(compRef);
+      if (!compSnap.exists()) throw new Error("企業が見つかりません");
+
+      const currentUsage = compSnap.data().usage_line || 0;
+      await updateDoc(compRef, {
+        usage_line: currentUsage + 1,
+        updatedAt: new Date(),
+      });
+
+      await addDoc(collection(db, "requests"), {
+        ...requestLog,
+        createdAt: new Date(),
+      });
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("submitConsultationRequest error:", error);
+    return { success: false, error: error.message || "相談依頼の申請に失敗しました" };
+  }
+}
+
+// 8. Submit Emergency Request
+export async function submitEmergencyRequest(
+  companyId: string,
+  data: {
+    description: string;
+  }
+) {
+  try {
+    if (!companyId || !data.description) {
+      throw new Error("必須項目が不足しています");
+    }
+
+    const requestLog = {
+      id: "req-" + Math.random().toString(36).substring(2, 9),
+      companyId,
+      type: "emergency",
+      details: `緊急対応: ${data.description}`,
+      status: "pending",
+      createdAt: new Date().toISOString(),
+    };
+
+    if (isMock) {
+      const dbData = readMockDB();
+      dbData.requests = dbData.requests || [];
+      dbData.requests.push(requestLog);
+      writeMockDB(dbData);
+    } else {
+      await addDoc(collection(db, "requests"), {
+        ...requestLog,
+        createdAt: new Date(),
+      });
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("submitEmergencyRequest error:", error);
+    return { success: false, error: error.message || "緊急対応の申請に失敗しました" };
+  }
+}
+
+
