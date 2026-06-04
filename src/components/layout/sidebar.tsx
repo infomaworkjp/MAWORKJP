@@ -68,7 +68,7 @@ const companyNavItems = [
   },
   {
     title: "基本管理",
-    href: "/dashboard/companies?tab=visa",
+    href: "/dashboard/basic-management",
     icon: CalendarDays,
     minLevel: 1,
   },
@@ -208,7 +208,7 @@ export function SidebarNav({ className }: { className?: string }) {
                 } else if (item.title === "従業員一覧" && user.companyId) {
                   targetHref = `/dashboard/companies/${user.companyId}?tab=employees`;
                 } else if (item.title === "基本管理" && user.companyId) {
-                  targetHref = `/dashboard/companies/${user.companyId}?tab=visa`;
+                  targetHref = `/dashboard/basic-management`;
                 } else if (item.title === "法令・安全教育" && user.companyId) {
                   targetHref = `/dashboard/companies/${user.companyId}?tab=templates`;
                 } else if (item.title === "上位プラン専用" && user.companyId) {
