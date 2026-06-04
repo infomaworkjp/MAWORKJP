@@ -41,15 +41,15 @@ body {
     --input: 210 40% 85%;
     --ring: 217 70% 40%; /* Primary color for rings */
 
-    /* Sidebar specific colors (can be adjusted if needed) */
-    --sidebar-background: 210 40% 98%; /* Slightly darker than main background */
-    --sidebar-foreground: 210 40% 12%;
-    --sidebar-primary: 217 70% 40%; /* Deep Blue for primary sidebar actions */
+    /* Sidebar specific colors (Midnight Blue and White) */
+    --sidebar-background: 222 47% 11%; /* #0f172a */
+    --sidebar-foreground: 210 20% 85%; /* Soft light gray for text */
+    --sidebar-primary: 217 70% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 70% 60%; /* Muted Light Blue for sidebar accents */
-    --sidebar-accent-foreground: 210 40% 12%;
-    --sidebar-border: 210 40% 90%;
-    --sidebar-ring: 217 70% 40%;
+    --sidebar-accent: 222 47% 20%; /* Slightly lighter dark blue for hover */
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 222 47% 16%;
+    --sidebar-ring: 217 70% 50%;
   }
 
   .dark {
