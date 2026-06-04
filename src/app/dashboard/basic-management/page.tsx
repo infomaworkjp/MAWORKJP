@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import { 
   Sparkles, Save, User, FileText, CheckCircle, AlertTriangle, 
   ArrowRight, ShieldCheck, RefreshCw, Plus, FileDown, Printer, 
-  Trash2, UserCheck, HelpCircle, Eye, AlertCircle, ArrowLeft, Loader2
+  Trash2, UserCheck, HelpCircle, Eye, AlertCircle, ArrowLeft, Loader2,
+  Building2
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { getCompanyById } from "@/app/actions/companies";
@@ -103,6 +104,129 @@ const ELIGIBILITY_RULES: Record<string, any> = {
   }
 };
 
+// Helper interface for cross-referenced eligibility results
+interface EligibilityResult {
+  allowed: "allowed" | "conditional" | "forbidden";
+  badgeText: string;
+  badgeColor: string;
+  resultTitle: string;
+  notes: string;
+  penalties: string;
+}
+
+// Logic to determine working eligibility based on Visa status, assigned job role, and company industry
+const getEligibilityResult = (visa: string, role: string, industry: string): EligibilityResult => {
+  if (visa === "eijuusha") {
+    return {
+      allowed: "allowed",
+      badgeText: "判定：可能（就労制限なし）",
+      badgeColor: "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800",
+      resultTitle: "この資格・職種での就労は：【可能】です",
+      notes: "永住者、日本人の配偶者等、定住者の在留資格は、職種や勤務時間の制限なく日本人と同様にどのような業務にも従事できます。カード有効期限の更新管理のみ注意してください。",
+      penalties: "就労面での入管法上のリスクや罰則はありません。ただし、在留カード自体の有効期限切れによる不法残留とならないよう、定期的な有効期限チェックは必要です。"
+    };
+  }
+
+  if (visa === "ryugaku" || visa === "kazokutaizai") {
+    const isStudent = visa === "ryugaku";
+    const visaName = isStudent ? "留学" : "家族滞在";
+    if (role === "field_labor") {
+      return {
+        allowed: "conditional",
+        badgeText: "判定：条件付きで可能",
+        badgeColor: "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800",
+        resultTitle: `この資格・職種での就労は：【条件付きで可能】です`,
+        notes: `現場作業も可能ですが、週28時間以内の就労時間を厳守してください。学校の長期休業期間中（留学ビザのみ）は1日8時間まで緩和されます。風俗営業店での就労（清掃やビラ配り等を含む）は完全に禁止されています。`,
+        penalties: "【資格外活動制限違反】他社との掛け持ちも含め、週28時間を1分でも超えて就労させた（オーバーワーク）場合、本人は退去強制（強制送還）の対象となり、雇用主には不法就労助長罪（3年以下の懲役もしくは300万円以下の罰金、またはその両方）が科されます。週次シフトの徹底的な労働時間合算管理が不可欠です。"
+      };
+    } else {
+      return {
+        allowed: "conditional",
+        badgeText: "判定：条件付きで可能",
+        badgeColor: "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800",
+        resultTitle: `この資格・職種での就労は：【条件付きで可能】です`,
+        notes: `オフィスワークや翻訳通訳、軽作業も可能ですが、週28時間以内の就労制限が厳密に適用されます。掛け持ちでの労働時間超過に十分注意し、風俗営業店での勤務は行わないでください。`,
+        penalties: "【アルバイト時間管理超過違反】週28時間を超過した場合、雇用主は不法就労助長罪で処罰されます。従業員の自己申告のみに頼らず、タイムカードでの実労働時間および他社シフト時間の管理を確実に行ってください。"
+      };
+    }
+  }
+
+  if (visa === "gijinkoku") {
+    if (role === "field_labor") {
+      return {
+        allowed: "forbidden",
+        badgeText: "判定：就労不可（高リスク）",
+        badgeColor: "bg-rose-100 text-rose-850 border-rose-300 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800",
+        resultTitle: "この資格・職種での就労は：【不可】です",
+        notes: "「技術・人文知識・国際業務」の在留資格はオフィスワーク（施工管理、CADオペレーター、通訳翻訳、技術的設計、一般事務職など）が前提です。建設現場での単純労働・作業員（資材運搬、塗装、足場組立、現場清掃等）の現業・肉体労働作業に従事させることは一切認められません。",
+        penalties: "【不法就労助長罪】オフィスワーク（施工管理等）の名目で入管に登録し、実態として現場の単純肉体作業に従事させた場合、入管法第73条の2に基づき、雇用主に対して「3年以下の懲役もしくは300万円以下の罰金（またはその両方）」が科されます。本罪は「知らなかった」という過失であっても処罰対象となります。また、本人の在留資格取消・強制送還になります。"
+      };
+    } else {
+      return {
+        allowed: "allowed",
+        badgeText: "判定：可能（オフィスワークのみ）",
+        badgeColor: "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800",
+        resultTitle: "この資格・職種での就労は：【可能】です",
+        notes: "施工管理、設計、営業、総務事務、通訳翻訳などの技術的・専門的オフィス業務での就労が可能です。学歴（専攻分野）または一定年数の実務経験と、従事する職務の明確な関連性が求められます。",
+        penalties: "就労範囲自体は適正ですが、本人が現場作業を手伝うなど「単純労働」に従事している実態があると判断された場合、ビザ更新申請時に不許可となり、不法就労助長罪の対象となるリスクがあります。本来の職務の専従を徹底してください。"
+      };
+    }
+  }
+
+  if (visa === "tokuteiginou") {
+    if (role === "field_labor") {
+      return {
+        allowed: "allowed",
+        badgeText: "判定：可能（登録分野のみ）",
+        badgeColor: "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800",
+        resultTitle: "この資格・職種での就労は：【可能】です",
+        notes: "特定技能（建設分野）として、登録された特定産業分野の職務（型枠施工、左官、コンクリート圧送、土工などの現業労働・作業）への従事が可能です。受け入れにあたり「特定技能外国人支援計画」の適正実施が前提です。",
+        penalties: "【支援計画不履行リスク】支援計画の実施懈怠（義務的支援の未実施）、入管への虚偽報告、定期報告の不履行等が発生した場合、指導対象となり、最悪の場合「受け入れ機関適合性」を取り消され、今後5年間特定技能外国人の新規受入れができなくなります。"
+      };
+    } else {
+      return {
+        allowed: "forbidden",
+        badgeText: "判定：就労不可",
+        badgeColor: "bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800",
+        resultTitle: "この資格・職種での就労は：【不可】です",
+        notes: "特定技能は現場・技能現業作業を行うための在留資格であり、一般事務職や専従の翻訳通訳、専従 of 営業職などのオフィスワークに専属して就労することは法律上認められていません（軽微な付随事務作業を除く）。",
+        penalties: "【資格外活動・ビザ違反】就労可能な職務の範囲（現場の作業）を超えた専従事務への配置はビザ不適合となり、入管の査察等で発覚した場合、虚偽申告や不当雇用とみなされ、受け入れ停止処分やビザ不許可処分となる重大なリスクがあります。"
+      };
+    }
+  }
+
+  if (visa === "ginoujisshuu") {
+    if (role === "field_labor") {
+      return {
+        allowed: "allowed",
+        badgeText: "判定：可能（実習計画範囲）",
+        badgeColor: "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800",
+        resultTitle: "この資格・職種での就労は：【可能】です",
+        notes: "認定された技能実習計画の職種・作業内容の範囲に基づき、現場での実習（就労）が可能です。実習実施者としての労基法遵守および適切な実習指導員の配置が前提となります。",
+        penalties: "【実習計画・基準違反】計画外の職種（例: 土工計画なのに足場組立に専従させる等）に従事させた場合、技能実習適正化法に基づき改善命令や実習認定取消処分が下されます。認定取り消し後は5年間新たな実習生の受け入れは完全に停止されます。"
+      };
+    } else {
+      return {
+        allowed: "forbidden",
+        badgeText: "判定：就労不可",
+        badgeColor: "bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800",
+        resultTitle: "この資格・職種での就労は：【不可】です",
+        notes: "技能実習計画において認定された職種以外の職務（例: オフィス内での事務作業、他部署での軽作業、専属の通訳業務など）に従事することはできません。",
+        penalties: "【計画外労働違反】実習計画外のデスクワークや一般事務に従事させた場合、実習生の失踪や不適正実習の引き金になり、実習認定取消および行政処分の対象となる重大な違法行為に該当します。"
+      };
+    }
+  }
+
+  return {
+    allowed: "forbidden",
+    badgeText: "判定：判定不可",
+    badgeColor: "bg-slate-100 text-slate-800 border-slate-300",
+    resultTitle: "判定できません",
+    notes: "組み合わせが未定義です。詳細情報をご自身でご確認ください。",
+    penalties: "未定義 of 違反リスクが存在する可能性があります。"
+  };
+};
+
 export default function BasicManagementPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -153,6 +277,7 @@ export default function BasicManagementPage() {
 
   // Working eligibility checker state
   const [selectedVisaCheck, setSelectedVisaCheck] = useState("gijinkoku");
+  const [selectedJobRole, setSelectedJobRole] = useState("field_labor");
 
   // Ledger select employee state
   const [selectedLedgerEmpId, setSelectedLedgerEmpId] = useState("");
@@ -1132,38 +1257,61 @@ export default function BasicManagementPage() {
           </div>
         </TabsContent>
 
-        {/* ---------------------------------------------------- */}
-        {/* TAB 3: WORKING ELIGIBILITY CHECK */}
-        {/* ---------------------------------------------------- */}
         <TabsContent value="eligibility" className="focus-visible:outline-none print:hidden">
           <Card className="border border-slate-100 shadow-md">
             <CardHeader className="pb-3 border-b bg-slate-50/30">
               <CardTitle className="text-base font-black text-slate-800 flex items-center gap-1.5">
                 <ShieldCheck className="h-5 w-5 text-indigo-500" />
-                就労可能資格判定・チェッカー
+                就労可能資格判定・チェッカー (業種職種連動版)
               </CardTitle>
               <CardDescription className="text-xs">
-                在留資格を選択することで、就労制限の有無や従事できる業務の範囲、受入れ上の法的な義務やペナルティを確認できます。
+                自社の登録業種と外国人従業員の在留資格・予定職種を掛け合わせて、安全に就労可能かを自動判定します。
               </CardDescription>
             </CardHeader>
             <CardContent className="p-6 space-y-6">
               
-              {/* Select Check */}
-              <div className="max-w-md space-y-2">
-                <Label htmlFor="visa-select" className="text-xs font-bold text-slate-700">在留資格を選択してください</Label>
-                <Select value={selectedVisaCheck} onValueChange={setSelectedVisaCheck}>
-                  <SelectTrigger id="visa-select" className="h-10 bg-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="gijinkoku">💻 技術・人文知識・国際業務 (専門職ビザ)</SelectItem>
-                    <SelectItem value="tokuteiginou">🛠️ 特定技能1号・2号 (現場・作業労働分野)</SelectItem>
-                    <SelectItem value="ginoujisshuu">🎓 技能実習 (実習計画に基づく労働)</SelectItem>
-                    <SelectItem value="ryugaku">✏️ 留学 (アルバイト・週28時間)</SelectItem>
-                    <SelectItem value="kazokutaizai">👨‍👩‍👧 家族滞在 (アルバイト・週28時間)</SelectItem>
-                    <SelectItem value="eijuusha">🟢 永住者・配偶者等・定住者 (就労制限なし)</SelectItem>
-                  </SelectContent>
-                </Select>
+              {/* Top Banner: Company Industry Info */}
+              <div className="flex items-center gap-2 p-3 bg-indigo-50/50 border border-indigo-100 rounded-xl text-xs">
+                <Building2 className="h-4 w-4 text-[#1A3A7B]" />
+                <div>
+                  <span className="font-bold text-slate-500">自社の登録業種: </span>
+                  <span className="font-black text-[#1A3A7B] bg-white border px-2 py-0.5 rounded">{company?.industry || "建設・土木"}</span>
+                </div>
+              </div>
+
+              {/* Selectors Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Select Visa */}
+                <div className="space-y-2">
+                  <Label htmlFor="visa-select" className="text-xs font-bold text-slate-700">1. 在留資格の選択</Label>
+                  <Select value={selectedVisaCheck} onValueChange={setSelectedVisaCheck}>
+                    <SelectTrigger id="visa-select" className="h-10 bg-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="gijinkoku">💻 技術・人文知識・国際業務 (専門職ビザ)</SelectItem>
+                      <SelectItem value="tokuteiginou">🛠️ 特定技能1号・2号 (現場・作業労働分野)</SelectItem>
+                      <SelectItem value="ginoujisshuu">🎓 技能実習 (実習計画に基づく労働)</SelectItem>
+                      <SelectItem value="ryugaku">✏️ 留学 (資格外活動許可でのアルバイト)</SelectItem>
+                      <SelectItem value="kazokutaizai">👨‍👩‍👧 家族滞在 (資格外活動許可でのアルバイト)</SelectItem>
+                      <SelectItem value="eijuusha">🟢 永住者・配偶者等・定住者 (就労制限なし)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Select Job Role */}
+                <div className="space-y-2">
+                  <Label htmlFor="role-select" className="text-xs font-bold text-slate-700">2. 従事予定の職種</Label>
+                  <Select value={selectedJobRole} onValueChange={setSelectedJobRole}>
+                    <SelectTrigger id="role-select" className="h-10 bg-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="field_labor">🧱 現場作業・単純労働 (屋外作業、現場現業作業等)</SelectItem>
+                      <SelectItem value="office_work">📁 事務・技術・通訳 (施工管理、設計、オフィス内作業等)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               {/* Dynamic rule card output */}
@@ -1171,51 +1319,78 @@ export default function BasicManagementPage() {
                 const rule = ELIGIBILITY_RULES[selectedVisaCheck];
                 if (!rule) return null;
 
+                const industry = company?.industry || "建設・土木";
+                const result = getEligibilityResult(selectedVisaCheck, selectedJobRole, industry);
+                
+                const roleLabel = selectedJobRole === "field_labor" ? "現場作業・単純労働" : "事務・技術・通訳";
+
                 return (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t">
-                    <div className="space-y-4">
-                      <div>
-                        <h3 className="text-lg font-black text-slate-900 leading-tight mb-2">{rule.title}</h3>
-                        <Badge className={`border font-black text-xs ${rule.typeColor}`}>{rule.type}</Badge>
+                  <div className="space-y-6 pt-4 border-t">
+                    
+                    {/* Super Large Results Badge */}
+                    <div className="flex flex-col items-center justify-center p-6 border rounded-2xl bg-slate-50/40 text-center space-y-3.5 shadow-inner">
+                      <span className="text-xs font-bold text-slate-500">
+                        【{company?.name || "自社"}】({industry}) × 予定職種: {roleLabel}
+                      </span>
+                      
+                      <div className={`px-8 py-3.5 rounded-full text-base sm:text-lg font-black border-2 shadow-sm animate-fade-in ${result.badgeColor}`}>
+                        {result.badgeText}
                       </div>
-
-                      <div className="space-y-3">
-                        <div className="bg-slate-50 p-4 border rounded-xl">
-                          <span className="text-[10px] font-bold text-slate-500 block uppercase mb-1">就労可能職種・範囲</span>
-                          <p className="text-xs text-slate-800 leading-relaxed font-bold">{rule.scope}</p>
-                        </div>
-
-                        <div className="bg-slate-50 p-4 border rounded-xl">
-                          <span className="text-[10px] font-bold text-slate-500 block uppercase mb-1">就労可能時間</span>
-                          <p className="text-xs text-slate-800 leading-relaxed font-bold">{rule.hours}</p>
-                        </div>
-                      </div>
+                      
+                      <h4 className="text-sm sm:text-base font-black text-slate-800 leading-tight">
+                        {result.resultTitle}
+                      </h4>
                     </div>
 
-                    <div className="space-y-4">
-                      <div className="bg-amber-500/5 p-4 border border-amber-200/60 rounded-xl space-y-2">
-                        <span className="text-xs font-bold text-amber-900 flex items-center gap-1">
-                          <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
-                          雇用・受入れ時の注意制限事項
-                        </span>
-                        <p className="text-xs text-slate-700 leading-relaxed font-semibold">{rule.restrictions}</p>
+                    {/* Columns Detail Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      
+                      <div className="space-y-4">
+                        {/* Visa Base Scope */}
+                        <div className="bg-slate-50 p-4 border rounded-xl space-y-2">
+                          <span className="text-[10px] font-black text-slate-500 block uppercase">在留資格の本来の活動範囲</span>
+                          <h5 className="text-xs font-black text-slate-800">{rule.title}</h5>
+                          <p className="text-xs text-slate-600 leading-relaxed font-semibold">{rule.scope}</p>
+                        </div>
+
+                        {/* Working Limits & Hours */}
+                        <div className="bg-slate-50 p-4 border rounded-xl space-y-1.5">
+                          <span className="text-[10px] font-black text-slate-500 block uppercase">就労条件・労働上限時間</span>
+                          <p className="text-xs text-slate-800 leading-relaxed font-bold">{rule.hours}</p>
+                        </div>
+
+                        {/* Specific Notes */}
+                        <div className="bg-amber-500/5 p-4 border border-amber-200/60 rounded-xl space-y-2">
+                          <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                            <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
+                            本組み合わせにおける注意制限・就労条件
+                          </span>
+                          <p className="text-xs text-slate-700 leading-relaxed font-bold">{result.notes}</p>
+                        </div>
                       </div>
 
-                      <div className="bg-emerald-500/5 p-4 border border-emerald-200/60 rounded-xl space-y-2">
-                        <span className="text-xs font-bold text-emerald-900 flex items-center gap-1">
-                          <CheckCircle className="h-4 w-4 text-emerald-600 shrink-0" />
-                          雇用主の確認・届出義務
-                        </span>
-                        <p className="text-xs text-slate-700 leading-relaxed font-semibold">{rule.compliance}</p>
+                      <div className="space-y-4">
+                        {/* Employer Compliance */}
+                        <div className="bg-emerald-500/5 p-4 border border-emerald-200/60 rounded-xl space-y-2">
+                          <span className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
+                            <CheckCircle className="h-4 w-4 text-emerald-600 shrink-0" />
+                            雇用主としての確認・届出義務
+                          </span>
+                          <p className="text-xs text-slate-700 leading-relaxed font-semibold">{rule.compliance}</p>
+                        </div>
+
+                        {/* Specific Legal Penalties / Risks */}
+                        <div className="bg-rose-500/5 p-4 border border-rose-300 rounded-xl space-y-2.5 shadow-sm">
+                          <span className="text-xs font-bold text-rose-950 flex items-center gap-1.5">
+                            <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0" />
+                            違反時の罰則・固有法的リスク
+                          </span>
+                          <p className="text-xs text-rose-900 leading-relaxed font-bold bg-rose-100/40 p-3 rounded border border-rose-200/60 shadow-inner">
+                            {result.penalties}
+                          </p>
+                        </div>
                       </div>
 
-                      <div className="bg-rose-500/5 p-4 border border-rose-200/60 rounded-xl space-y-2">
-                        <span className="text-xs font-bold text-rose-950 flex items-center gap-1">
-                          <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0" />
-                          違反時の罰則・リスク
-                        </span>
-                        <p className="text-xs text-rose-900 leading-relaxed font-bold">{rule.penalties}</p>
-                      </div>
                     </div>
                   </div>
                 );
