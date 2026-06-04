@@ -1392,378 +1392,7 @@ export default function CompanyDetailPage() {
     );
   }
 
-  if (user?.role === "company") {
-    const planInfo = getPlanDetails(company.plan_type || company.plan || "entry");
 
-    return (
-      <div className="space-y-8 max-w-6xl mx-auto font-sans">
-        {/* Top Header */}
-        <div className="flex items-center justify-between border-b pb-4">
-          <div className="flex items-center gap-3">
-            <Button variant="outline" size="icon" asChild className="h-9 w-9">
-              <Link href="/dashboard">
-                <ArrowLeft className="h-4 w-4" />
-              </Link>
-            </Button>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-black text-primary tracking-tight">{company.name} プロフィール</h1>
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${planInfo.badgeColor}`}>
-                  {(company.plan_type || company.plan || "entry").toUpperCase()}
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                自社の基本情報およびご契約状況を管理する画面です。
-              </p>
-            </div>
-          </div>
-          <Button variant="outline" asChild size="sm">
-            <Link href="/dashboard">ダッシュボードへ戻る</Link>
-          </Button>
-        </div>
-
-        {/* 2-Column Responsive Layout (Left 1/3, Right 2/3) */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
-          {/* Left Column (1/3 width on desktop) */}
-          <div className="lg:col-span-1 space-y-6">
-            {/* 1. 自社プロフィール */}
-            <Card className="shadow-sm border border-border bg-white dark:bg-zinc-900">
-              <CardHeader className="bg-muted/15 pb-4 border-b">
-                <CardTitle className="text-sm font-bold flex items-center gap-1.5 text-primary">
-                  <Building className="h-4 w-4 text-[#1A3A7B]" /> 自社プロフィール
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-5 space-y-4 text-sm leading-relaxed">
-                <div className="space-y-1">
-                  <Label className="text-xs font-bold text-muted-foreground">企業名</Label>
-                  <p className="font-semibold text-primary">{company.name}</p>
-                </div>
-                <Separator />
-                <div className="space-y-1">
-                  <Label className="text-xs font-bold text-muted-foreground">住所</Label>
-                  <p className="font-semibold text-primary">{company.address || "未設定"}</p>
-                </div>
-                <Separator />
-                <div className="space-y-1">
-                  <Label className="text-xs font-bold text-muted-foreground">電話番号</Label>
-                  <p className="font-semibold text-primary">{company.contactPhone || "未設定"}</p>
-                </div>
-                <Separator />
-                <div className="space-y-1">
-                  <Label className="text-xs font-bold text-muted-foreground">窓口担当者</Label>
-                  <p className="font-semibold text-primary">{company.contactName}</p>
-                  <p className="text-xs text-muted-foreground">{company.contactEmail}</p>
-                </div>
-                <Separator />
-                <div className="space-y-1">
-                  <Label className="text-xs font-bold text-muted-foreground">業種</Label>
-                  <p className="font-semibold text-primary">{company.industry}</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* 2. 現在のプラン */}
-            <Card className={`shadow-sm border-2 ${planInfo.color}`}>
-              <CardHeader className="border-b border-muted/80 pb-4">
-                <div className="space-y-1">
-                  <span className="text-xs font-bold text-muted-foreground">現在のご契約プラン</span>
-                  <CardTitle className="text-sm font-extrabold text-primary flex items-center gap-1.5">
-                    <Sparkles className="h-4.5 w-4.5 text-indigo-600 animate-pulse" />
-                    {planInfo.name}
-                  </CardTitle>
-                </div>
-                <div className="mt-2">
-                  <p className="text-base font-black text-indigo-900 dark:text-indigo-200">{planInfo.price}</p>
-                  <p className="text-[10px] text-muted-foreground">※月額定額保守費用</p>
-                </div>
-              </CardHeader>
-              <CardContent className="p-5 space-y-4">
-                <h3 className="text-xs font-bold text-primary flex items-center gap-1">
-                  <Check className="h-3.5 w-3.5 text-indigo-500" />
-                  提供される主なサポート内容
-                </h3>
-                <div className="space-y-2.5 text-xs">
-                  {planInfo.features.map((feature: any, idx: number) => (
-                    <div key={idx} className="flex gap-2 items-start p-2.5 rounded-lg bg-white/70 dark:bg-zinc-950/60 border border-muted/50">
-                      <div className="p-0.5 bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 rounded-full shrink-0">
-                        <Check className="h-3 w-3" />
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-primary">
-                          {typeof feature === "string" ? feature : feature.title}
-                        </h4>
-                        {typeof feature !== "string" && feature.desc && (
-                          <p className="text-[11px] text-muted-foreground mt-0.5">{feature.desc}</p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Right Column (2/3 width on desktop) */}
-          <div className="lg:col-span-2 space-y-6">
-            
-            {/* 3. 外部専門家 */}
-            <Card className="shadow-sm border border-border">
-              <CardHeader className="bg-muted/15 pb-4 border-b">
-                <CardTitle className="text-sm font-bold flex items-center gap-1.5 text-primary">
-                  <Landmark className="h-4.5 w-4.5 text-indigo-600" />
-                  外部専門家・顧問ネットワーク
-                </CardTitle>
-                <CardDescription className="text-xs">
-                  自社を担当している士業専門家窓口および緊急連絡先です。
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-5">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* 1. Scrivener */}
-                  <div
-                    onClick={() => {
-                      window.location.href = `mailto:${company.scrivenerEmail || "sato@legal-office.com"}`;
-                    }}
-                    className="p-4 rounded-xl border bg-white/70 dark:bg-zinc-950/60 shadow-sm flex flex-col justify-between space-y-4 cursor-pointer hover:shadow-md hover:bg-white/95 dark:hover:bg-zinc-900/80 hover:-translate-y-0.5 transition-all duration-200"
-                  >
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1.5 text-xs font-extrabold text-indigo-800 bg-indigo-50 dark:bg-indigo-950/40 px-2.5 py-1 rounded-md border border-indigo-100 dark:border-indigo-900 w-fit">
-                          <FileCheck className="h-3.5 w-3.5 shrink-0" />
-                          担当行政書士
-                        </div>
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                          <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
-                          対応可能
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3 pt-1">
-                        <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white shadow-sm shrink-0 bg-gradient-to-br from-blue-500 to-indigo-600 text-xs">
-                          行
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <h4 className="text-sm font-black text-primary truncate">{company.scrivenerName || "佐藤 護"}</h4>
-                          <div className="text-[11px] text-muted-foreground break-all flex items-center gap-1 mt-0.5">
-                            <Mail className="h-3 w-3 shrink-0" />
-                            <span className="truncate">{company.scrivenerEmail || "sato@legal-office.com"}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 2. Labor Consultant */}
-                  <div
-                    onClick={() => {
-                      window.location.href = `mailto:${company.laborConsultantEmail || "suzuki@sr-office.com"}`;
-                    }}
-                    className="p-4 rounded-xl border bg-white/70 dark:bg-zinc-950/60 shadow-sm flex flex-col justify-between space-y-4 cursor-pointer hover:shadow-md hover:bg-white/95 dark:hover:bg-zinc-900/80 hover:-translate-y-0.5 transition-all duration-200"
-                  >
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1.5 text-xs font-extrabold text-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-md border border-emerald-100 dark:border-emerald-900 w-fit">
-                          <Users className="h-3.5 w-3.5 shrink-0" />
-                          担当社労士
-                        </div>
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-500 border border-blue-500/20">
-                          <span className="w-1 h-1 rounded-full bg-blue-500 animate-pulse" />
-                          オンライン
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3 pt-1">
-                        <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white shadow-sm shrink-0 bg-gradient-to-br from-emerald-400 to-teal-600 text-xs">
-                          労
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <h4 className="text-sm font-black text-primary truncate">{company.laborConsultantName || "鈴木 茂"}</h4>
-                          <div className="text-[11px] text-muted-foreground break-all flex items-center gap-1 mt-0.5">
-                            <Mail className="h-3 w-3 shrink-0" />
-                            <span className="truncate">{company.laborConsultantEmail || "suzuki@sr-office.com"}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 3. Attorney */}
-                  <div
-                    onClick={() => {
-                      window.location.href = `mailto:${company.attorneyEmail || "tanaka@law-office.com"}`;
-                    }}
-                    className="p-4 rounded-xl border bg-white/70 dark:bg-zinc-950/60 shadow-sm flex flex-col justify-between space-y-4 cursor-pointer hover:shadow-md hover:bg-white/95 dark:hover:bg-zinc-900/80 hover:-translate-y-0.5 transition-all duration-200"
-                  >
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1.5 text-xs font-bold text-amber-800 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1 rounded-md border border-amber-100 dark:border-amber-900 w-fit">
-                          <Scale className="h-3.5 w-3.5 shrink-0" />
-                          担当弁護士
-                        </div>
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                          <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
-                          対応可能
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3 pt-1">
-                        <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white shadow-sm shrink-0 bg-gradient-to-br from-amber-400 to-orange-600 text-xs">
-                          弁
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <h4 className="text-sm font-black text-primary truncate">{company.attorneyName || "田中 誠"}</h4>
-                          <div className="text-[11px] text-muted-foreground break-all flex items-center gap-1 mt-0.5">
-                            <Mail className="h-3 w-3 shrink-0" />
-                            <span className="truncate">{company.attorneyEmail || "tanaka@law-office.com"}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 4. Translator & Interpreter Advisor */}
-                  <div
-                    onClick={() => {
-                      window.location.href = `mailto:info@mawork.jp`;
-                    }}
-                    className="p-4 rounded-xl border bg-white/70 dark:bg-zinc-950/60 shadow-sm flex flex-col justify-between space-y-4 cursor-pointer hover:shadow-md hover:bg-white/95 dark:hover:bg-zinc-900/80 hover:-translate-y-0.5 transition-all duration-200"
-                  >
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1.5 text-xs font-extrabold text-purple-800 bg-purple-50 dark:bg-purple-950/40 px-2.5 py-1 rounded-md border border-purple-100 dark:border-purple-900 w-fit">
-                          <Languages className="h-3.5 w-3.5 shrink-0" />
-                          翻訳通訳顧問
-                        </div>
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-500 border border-blue-500/20">
-                          <span className="w-1 h-1 rounded-full bg-blue-500 animate-pulse" />
-                          オンライン
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3 pt-1">
-                        <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white shadow-sm shrink-0 bg-gradient-to-br from-purple-400 to-fuchsia-600 text-xs">
-                          訳
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <h4 className="text-sm font-black text-primary truncate">MAWORKJP</h4>
-                          <div className="text-[11px] text-muted-foreground break-all flex items-center gap-1 mt-0.5">
-                            <Mail className="h-3 w-3 shrink-0" />
-                            <span className="truncate">info@mawork.jp</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 5. Emergency Contact */}
-                  <div
-                    onClick={() => {
-                      window.location.href = `tel:090-9854-6498`;
-                    }}
-                    className="p-4 rounded-xl border bg-white/70 dark:bg-zinc-950/60 shadow-sm flex flex-col justify-between space-y-4 cursor-pointer hover:shadow-md hover:bg-white/95 dark:hover:bg-zinc-900/80 hover:-translate-y-0.5 transition-all duration-200 sm:col-span-2"
-                  >
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1.5 text-xs font-extrabold text-red-800 bg-red-50 dark:bg-red-950/40 px-2.5 py-1 rounded-md border border-red-100 dark:border-red-900 w-fit">
-                          <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
-                          緊急連絡先
-                        </div>
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500/10 text-red-500 border border-red-500/20">
-                          <span className="w-1 h-1 rounded-full bg-red-500 animate-pulse" />
-                          24時間受付
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3 pt-1">
-                        <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white shadow-sm shrink-0 bg-gradient-to-br from-red-500 to-rose-600 text-xs">
-                          緊
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <h4 className="text-sm font-black text-primary leading-tight">ケガやトラブルの際の緊急ダイヤル</h4>
-                          <div className="text-[11.5px] text-muted-foreground flex items-center gap-1 mt-0.5">
-                            <Phone className="h-3.5 w-3.5 shrink-0" />
-                            <span className="font-mono font-bold">📞 090-9854-6498</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* 4. 採用ネットワーク */}
-            <Card className="shadow-sm border border-border bg-white dark:bg-zinc-900">
-              <CardHeader className="bg-muted/15 pb-4 border-b">
-                <CardTitle className="text-sm font-bold flex items-center gap-1.5 text-primary">
-                  <UserPlus className="h-4.5 w-4.5 text-indigo-600" />
-                  外部連携求人・採用ネットワーク
-                </CardTitle>
-                <CardDescription className="text-xs">
-                  外国人採用を円滑に行うための、各種求人メディアおよび提携パートナー連携状況です。
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-5">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  
-                  {/* Partner 1 */}
-                  <div className="p-4 rounded-xl border bg-white/70 dark:bg-zinc-950/60 shadow-sm flex flex-col justify-between space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-black text-primary">MA WORK キャリア</h4>
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                        連携中
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground leading-normal">
-                      特定技能・技術人文知識国際業務の求人票をベトナム、ネパール、インドネシアの現地求職者へダイレクト配信。
-                    </p>
-                  </div>
-
-                  {/* Partner 2 */}
-                  <div className="p-4 rounded-xl border bg-white/70 dark:bg-zinc-950/60 shadow-sm flex flex-col justify-between space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-black text-primary">Indeed 求人連携</h4>
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                        連携中
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground leading-normal">
-                      Indeedの多言語検索エンジンに向けて、システムから外国人募集案件を自動インデックス連携。
-                    </p>
-                  </div>
-
-                  {/* Partner 3 */}
-                  <div className="p-4 rounded-xl border bg-white/70 dark:bg-zinc-950/60 shadow-sm flex flex-col justify-between space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-black text-primary">マイナビ転職 (グローバル)</h4>
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-500/10 text-slate-500 border border-slate-500/20">
-                        一時停止中
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground leading-normal">
-                      国内在住の転職・キャリアアップ希望者向けのイベントおよび求人広告掲載サービスとのAPI連携。
-                    </p>
-                  </div>
-
-                  {/* Partner 4 */}
-                  <div className="p-4 rounded-xl border bg-white/70 dark:bg-zinc-950/60 shadow-sm flex flex-col justify-between space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-black text-primary">提携海外送り出し機関</h4>
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-500 border border-blue-500/20">
-                        対応可能
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground leading-normal">
-                      ベトナム・ネパール・インドネシア・フィリピンの政府公認送り出し機関による現地事前研修プログラムとの提携。
-                    </p>
-                  </div>
-
-                </div>
-              </CardContent>
-            </Card>
-
-          </div>
-
-        </div>
-      </div>
-    );
-  }
 
 
 
@@ -1787,27 +1416,29 @@ export default function CompanyDetailPage() {
       {/* Top Header */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b pb-4">
         <div className="flex items-center gap-3">
-          {user.role === "admin" && (
-            <Button variant="outline" size="icon" asChild className="h-9 w-9">
-              <Link href="/dashboard/companies">
-                <ArrowLeft className="h-4 w-4" />
-              </Link>
-            </Button>
-          )}
+          <Button variant="outline" size="icon" asChild className="h-9 w-9">
+            <Link href={user.role === "admin" ? "/dashboard/companies" : "/dashboard"}>
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+          </Button>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-black text-primary tracking-tight">{company.name}</h1>
+              <h1 className="text-2xl font-black text-primary tracking-tight">
+                {company.name} {user.role === "company" && "プロフィール"}
+              </h1>
               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${planInfo.badgeColor}`}>
                 {planType.toUpperCase()}
               </span>
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
-              業種: {company.industry} | 住所: {company.address}
+              {user.role === "admin"
+                ? `業種: ${company.industry} | 住所: ${company.address}`
+                : "自社の基本情報およびご契約状況を管理する画面です。"}
             </p>
           </div>
         </div>
 
-        {user.role === "admin" && (
+        {user.role === "admin" ? (
           <div className="flex items-center gap-2">
             <Button
               onClick={() => {
@@ -1826,714 +1457,709 @@ export default function CompanyDetailPage() {
               </Link>
             </Button>
           </div>
+        ) : (
+          <Button variant="outline" asChild size="sm">
+            <Link href="/dashboard">ダッシュボードへ戻る</Link>
+          </Button>
         )}
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
-        {user.role === "admin" && (
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-6 h-auto p-1 gap-1.5 bg-muted/65 rounded-xl border">
-            <TabsTrigger value="profile" className="font-bold text-xs py-2.5 rounded-lg transition-all">
-              プロフィール
-            </TabsTrigger>
-            <TabsTrigger value="employees" className="font-bold text-xs py-2.5 rounded-lg transition-all">
-              従業員一覧
-            </TabsTrigger>
-            <TabsTrigger
-              value="visa"
-              className="font-bold text-xs py-2.5 rounded-lg transition-all flex items-center justify-center gap-1"
-            >
-              在留期限・更新予定
-              {!isVisaAllowed && (
-                <Lock className="h-3 w-3 text-muted-foreground shrink-0" />
-              )}
-            </TabsTrigger>
-            <TabsTrigger
-              value="templates"
-              className="font-bold text-xs py-2.5 rounded-lg transition-all flex items-center justify-center gap-1"
-            >
-              安全教育・テンプレート
-              {!isSafetyAllowed && (
-                <Lock className="h-3 w-3 text-muted-foreground shrink-0" />
-              )}
-            </TabsTrigger>
-            <TabsTrigger
-              value="ai-audit"
-              className="font-bold text-xs py-2.5 rounded-lg transition-all flex items-center justify-center gap-1"
-            >
-              AIコンプライアンス
-              {!isAiAuditAllowed && (
-                <Lock className="h-3 w-3 text-muted-foreground shrink-0" />
-              )}
-            </TabsTrigger>
-            <TabsTrigger
-              value="executive"
-              className="font-bold text-xs py-2.5 rounded-lg transition-all flex items-center justify-center gap-1"
-            >
-              エグゼクティブDB
-              {!isExecutiveAllowed && (
-                <Lock className="h-3 w-3 text-muted-foreground shrink-0" />
-              )}
-            </TabsTrigger>
-          </TabsList>
-        )}
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-6 h-auto p-1 gap-1.5 bg-muted/65 rounded-xl border">
+          <TabsTrigger value="profile" className="font-bold text-xs py-2.5 rounded-lg transition-all">
+            プロフィール
+          </TabsTrigger>
+          <TabsTrigger value="employees" className="font-bold text-xs py-2.5 rounded-lg transition-all">
+            従業員一覧
+          </TabsTrigger>
+          <TabsTrigger
+            value="visa"
+            className="font-bold text-xs py-2.5 rounded-lg transition-all flex items-center justify-center gap-1"
+          >
+            在留期限・更新予定
+            {!isVisaAllowed && (
+              <Lock className="h-3 w-3 text-muted-foreground shrink-0" />
+            )}
+          </TabsTrigger>
+          <TabsTrigger
+            value="templates"
+            className="font-bold text-xs py-2.5 rounded-lg transition-all flex items-center justify-center gap-1"
+          >
+            安全教育・テンプレート
+            {!isSafetyAllowed && (
+              <Lock className="h-3 w-3 text-muted-foreground shrink-0" />
+            )}
+          </TabsTrigger>
+          <TabsTrigger
+            value="ai-audit"
+            className="font-bold text-xs py-2.5 rounded-lg transition-all flex items-center justify-center gap-1"
+          >
+            AIコンプライアンス
+            {!isAiAuditAllowed && (
+              <Lock className="h-3 w-3 text-muted-foreground shrink-0" />
+            )}
+          </TabsTrigger>
+          <TabsTrigger
+            value="executive"
+            className="font-bold text-xs py-2.5 rounded-lg transition-all flex items-center justify-center gap-1"
+          >
+            エグゼクティブDB
+            {!isExecutiveAllowed && (
+              <Lock className="h-3 w-3 text-muted-foreground shrink-0" />
+            )}
+          </TabsTrigger>
+        </TabsList>
 
         <TabsContent value="profile" className="space-y-6 outline-none focus:ring-0">
+          
+          {/* 2-Column Responsive Layout (Left 1/3, Right 2/3) */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Card className="lg:col-span-1 shadow-sm border border-border">
-              <CardHeader className="bg-muted/15 pb-4 border-b">
-                <CardTitle className="text-sm font-bold flex items-center gap-1.5 text-primary">
-                  <Building className="h-4 w-4 text-[#1A3A7B]" />
-                  企業情報
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-5 space-y-4 text-sm leading-relaxed">
-                <div className="space-y-1">
-                  <Label className="text-xs font-bold text-muted-foreground">企業名</Label>
-                  <p className="font-semibold text-primary">{company.name}</p>
-                </div>
-                <Separator />
-                <div className="space-y-1">
-                  <Label className="text-xs font-bold text-muted-foreground">業種</Label>
-                  <p className="font-semibold text-primary">{company.industry}</p>
-                </div>
-                <Separator />
-                <div className="space-y-1">
-                  <Label className="text-xs font-bold text-muted-foreground flex items-center gap-1">
-                    <MapPin className="h-3 w-3" />
-                    住所
-                  </Label>
-                  <p className="font-semibold text-primary">{company.address || "未設定"}</p>
-                </div>
-                <Separator />
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-muted-foreground">窓口担当者</Label>
-                  <p className="font-semibold text-primary">{company.contactName}</p>
-                  <div className="text-xs text-muted-foreground space-y-1 pt-1">
-                    <div className="flex items-center gap-1.5">
-                      <Mail className="h-3.5 w-3.5 shrink-0" />
-                      {company.contactEmail}
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <Phone className="h-3.5 w-3.5 shrink-0" />
-                      {company.contactPhone}
+            
+            {/* Left Column (1/3 width on desktop) */}
+            <div className="lg:col-span-1 space-y-6">
+              {/* 1. 自社プロフィール */}
+              <Card className="shadow-sm border border-border bg-white dark:bg-zinc-900">
+                <CardHeader className="bg-muted/15 pb-4 border-b">
+                  <CardTitle className="text-sm font-bold flex items-center gap-1.5 text-primary">
+                    <Building className="h-4 w-4 text-[#1A3A7B]" /> 自社プロフィール
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-5 space-y-4 text-sm leading-relaxed">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-bold text-muted-foreground">企業名</Label>
+                    <p className="font-semibold text-primary">{company.name}</p>
+                  </div>
+                  <Separator />
+                  <div className="space-y-1">
+                    <Label className="text-xs font-bold text-muted-foreground">業種</Label>
+                    <p className="font-semibold text-primary">{company.industry}</p>
+                  </div>
+                  <Separator />
+                  <div className="space-y-1">
+                    <Label className="text-xs font-bold text-muted-foreground flex items-center gap-1">
+                      <MapPin className="h-3 w-3" />
+                      住所
+                    </Label>
+                    <p className="font-semibold text-primary">{company.address || "未設定"}</p>
+                  </div>
+                  <Separator />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold text-muted-foreground">窓口担当者</Label>
+                    <p className="font-semibold text-primary">{company.contactName}</p>
+                    <div className="text-xs text-muted-foreground space-y-1 pt-1">
+                      <div className="flex items-center gap-1.5">
+                        <Mail className="h-3.5 w-3.5 shrink-0" />
+                        {company.contactEmail}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Phone className="h-3.5 w-3.5 shrink-0" />
+                        {company.contactPhone || "未設定"}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
-            <Card className={`lg:col-span-2 shadow-sm border-2 ${planInfo.color}`}>
-              <CardHeader className="border-b border-muted/80 pb-4">
-                <div className="flex items-center justify-between flex-wrap gap-2">
+              {/* 2. 現在のプラン */}
+              <Card className={`shadow-sm border-2 ${planInfo.color}`}>
+                <CardHeader className="border-b border-muted/80 pb-4">
                   <div className="space-y-1">
                     <span className="text-xs font-bold text-muted-foreground">現在のご契約プラン</span>
-                    <CardTitle className="text-lg font-extrabold text-primary flex items-center gap-1.5">
+                    <CardTitle className="text-sm font-extrabold text-primary flex items-center gap-1.5">
                       <Sparkles className="h-4.5 w-4.5 text-indigo-600 animate-pulse" />
                       {planInfo.name}
                     </CardTitle>
                   </div>
-                  <div className="text-right">
+                  <div className="mt-2">
                     <p className="text-base font-black text-indigo-900 dark:text-indigo-200">{planInfo.price}</p>
                     <p className="text-[10px] text-muted-foreground">※月額定額保守費用</p>
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent className="p-5 space-y-4">
-                <h3 className="text-xs font-bold text-primary flex items-center gap-1">
-                  <Check className="h-3.5 w-3.5 text-indigo-500" />
-                  提供される主なサポート内容
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                  {planInfo.features.map((feature, idx) => (
-                    <div key={idx} className="flex gap-2 items-start p-2.5 rounded-lg bg-white/70 dark:bg-zinc-950/60 border border-muted/50">
-                      <div className="p-0.5 bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 rounded-full shrink-0">
-                        <Check className="h-3 w-3" />
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-primary">
-                          {typeof feature === "string" ? feature : feature.title}
-                        </h4>
-                        {feature.desc && (
-                          <p className="text-[11px] text-muted-foreground mt-0.5">{feature.desc}</p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="lg:col-span-2 shadow-sm border border-border">
-              <CardHeader className="bg-muted/15 pb-4 border-b">
-                <CardTitle className="text-sm font-bold flex items-center gap-1.5 text-primary">
-                  <Landmark className="h-4.5 w-4.5 text-indigo-600" />
-                  外部専門家・顧問ネットワーク（在留資格・労務・リーガル）
-                </CardTitle>
-                <CardDescription className="text-xs">
-                  本企業を担当している士業専門家窓口です。各種手続きの代行や労務相談を行えます。
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  {/* 1. Scrivener */}
-                  <div
-                    onClick={() => {
-                      window.location.href = `mailto:${company.scrivenerEmail || "sato@legal-office.com"}`;
-                    }}
-                    className="p-4 rounded-xl border bg-white/70 dark:bg-zinc-950/60 shadow-sm flex flex-col justify-between space-y-4 cursor-pointer hover:shadow-md hover:bg-white/95 dark:hover:bg-zinc-900/80 hover:-translate-y-0.5 transition-all duration-200"
-                  >
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1.5 text-xs font-extrabold text-indigo-800 bg-indigo-50 dark:bg-indigo-950/40 px-2.5 py-1 rounded-md border border-indigo-100 dark:border-indigo-900 w-fit">
-                          <FileCheck className="h-3.5 w-3.5 shrink-0" />
-                          担当行政書士
+                </CardHeader>
+                <CardContent className="p-5 space-y-4">
+                  <h3 className="text-xs font-bold text-primary flex items-center gap-1">
+                    <Check className="h-3.5 w-3.5 text-indigo-500" />
+                    提供される主なサポート内容
+                  </h3>
+                  <div className="space-y-2.5 text-xs">
+                    {planInfo.features.map((feature: any, idx: number) => (
+                      <div key={idx} className="flex gap-2 items-start p-2.5 rounded-lg bg-white/70 dark:bg-zinc-950/60 border border-muted/50">
+                        <div className="p-0.5 bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 rounded-full shrink-0">
+                          <Check className="h-3 w-3" />
                         </div>
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                          <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
-                          対応可能
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3 pt-1">
-                        <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white shadow-sm shrink-0 bg-gradient-to-br from-blue-500 to-indigo-600 text-xs">
-                          行
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <h4 className="text-sm font-black text-primary truncate">{company.scrivenerName || "佐藤 護"}</h4>
-                          <div className="text-[11px] text-muted-foreground break-all flex items-center gap-1 mt-0.5">
-                            <Mail className="h-3 w-3 shrink-0" />
-                            <span className="truncate">{company.scrivenerEmail || "sato@legal-office.com"}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    {user.role === "admin" && (company.scrivenerEmail || "sato@legal-office.com") && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openMailModal(company.scrivenerName || "佐藤 護", company.scrivenerEmail || "sato@legal-office.com", "visa");
-                        }}
-                        className="w-full text-xs font-bold text-[#1A3A7B] border-[#1A3A7B]/20 hover:bg-[#1A3A7B]/5"
-                      >
-                        ✉️ メールを送信
-                      </Button>
-                    )}
-                  </div>
-
-                  {/* 2. Labor Consultant */}
-                  <div
-                    onClick={() => {
-                      window.location.href = `mailto:${company.laborConsultantEmail || "suzuki@sr-office.com"}`;
-                    }}
-                    className="p-4 rounded-xl border bg-white/70 dark:bg-zinc-950/60 shadow-sm flex flex-col justify-between space-y-4 cursor-pointer hover:shadow-md hover:bg-white/95 dark:hover:bg-zinc-900/80 hover:-translate-y-0.5 transition-all duration-200"
-                  >
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1.5 text-xs font-extrabold text-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-md border border-emerald-100 dark:border-emerald-900 w-fit">
-                          <Users className="h-3.5 w-3.5 shrink-0" />
-                          担当社労士
-                        </div>
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-500 border border-blue-500/20">
-                          <span className="w-1 h-1 rounded-full bg-blue-500 animate-pulse" />
-                          オンライン
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3 pt-1">
-                        <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white shadow-sm shrink-0 bg-gradient-to-br from-emerald-400 to-teal-600 text-xs">
-                          労
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <h4 className="text-sm font-black text-primary truncate">{company.laborConsultantName || "鈴木 茂"}</h4>
-                          <div className="text-[11px] text-muted-foreground break-all flex items-center gap-1 mt-0.5">
-                            <Mail className="h-3 w-3 shrink-0" />
-                            <span className="truncate">{company.laborConsultantEmail || "suzuki@sr-office.com"}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    {user.role === "admin" && (company.laborConsultantEmail || "suzuki@sr-office.com") && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openMailModal(company.laborConsultantName || "鈴木 茂", company.laborConsultantEmail || "suzuki@sr-office.com", "subsidy");
-                        }}
-                        className="w-full text-xs font-bold text-emerald-700 border-emerald-200 hover:bg-emerald-50/50"
-                      >
-                        ✉️ メールを送信
-                      </Button>
-                    )}
-                  </div>
-
-                  {/* 3. Attorney */}
-                  <div
-                    onClick={() => {
-                      window.location.href = `mailto:${company.attorneyEmail || "tanaka@law-office.com"}`;
-                    }}
-                    className="p-4 rounded-xl border bg-white/70 dark:bg-zinc-950/60 shadow-sm flex flex-col justify-between space-y-4 cursor-pointer hover:shadow-md hover:bg-white/95 dark:hover:bg-zinc-900/80 hover:-translate-y-0.5 transition-all duration-200"
-                  >
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1.5 text-xs font-bold text-amber-800 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1 rounded-md border border-amber-100 dark:border-amber-900 w-fit">
-                          <Scale className="h-3.5 w-3.5 shrink-0" />
-                          担当弁護士
-                        </div>
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                          <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
-                          対応可能
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3 pt-1">
-                        <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white shadow-sm shrink-0 bg-gradient-to-br from-amber-400 to-orange-600 text-xs">
-                          弁
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <h4 className="text-sm font-black text-primary truncate">{company.attorneyName || "田中 誠"}</h4>
-                          <div className="text-[11px] text-muted-foreground break-all flex items-center gap-1 mt-0.5">
-                            <Mail className="h-3 w-3 shrink-0" />
-                            <span className="truncate">{company.attorneyEmail || "tanaka@law-office.com"}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    {user.role === "admin" && (company.attorneyEmail || "tanaka@law-office.com") && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openMailModal(company.attorneyName || "田中 誠", company.attorneyEmail || "tanaka@law-office.com", "legal");
-                        }}
-                        className="w-full text-xs font-bold text-amber-700 border-amber-200 hover:bg-amber-50/50"
-                      >
-                        ✉️ メールを送信
-                      </Button>
-                    )}
-                  </div>
-
-                  {/* 4. Translator & Interpreter Advisor */}
-                  <div
-                    onClick={() => {
-                      window.location.href = `mailto:info@mawork.jp`;
-                    }}
-                    className="p-4 rounded-xl border bg-white/70 dark:bg-zinc-950/60 shadow-sm flex flex-col justify-between space-y-4 cursor-pointer hover:shadow-md hover:bg-white/95 dark:hover:bg-zinc-900/80 hover:-translate-y-0.5 transition-all duration-200"
-                  >
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1.5 text-xs font-extrabold text-purple-800 bg-purple-50 dark:bg-purple-950/40 px-2.5 py-1 rounded-md border border-purple-100 dark:border-purple-900 w-fit">
-                          <Languages className="h-3.5 w-3.5 shrink-0" />
-                          翻訳通訳顧問
-                        </div>
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-500 border border-blue-500/20">
-                          <span className="w-1 h-1 rounded-full bg-blue-500 animate-pulse" />
-                          オンライン
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3 pt-1">
-                        <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white shadow-sm shrink-0 bg-gradient-to-br from-purple-400 to-fuchsia-600 text-xs">
-                          訳
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <h4 className="text-sm font-black text-primary truncate">MAWORKJP</h4>
-                          <div className="text-[11px] text-muted-foreground break-all flex items-center gap-1 mt-0.5">
-                            <Mail className="h-3 w-3 shrink-0" />
-                            <span className="truncate">info@mawork.jp</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    {user.role === "admin" && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openMailModal("MAWORKJP", "info@mawork.jp", "translation");
-                        }}
-                        className="w-full text-xs font-bold text-purple-700 border-purple-200 hover:bg-purple-50/50"
-                      >
-                        ✉️ メールを送信
-                      </Button>
-                    )}
-                  </div>
-
-                  {/* 5. Emergency Contact */}
-                  <div
-                    onClick={() => {
-                      window.location.href = `tel:090-9854-6498`;
-                    }}
-                    className="p-4 rounded-xl border bg-white/70 dark:bg-zinc-950/60 shadow-sm flex flex-col justify-between space-y-4 cursor-pointer hover:shadow-md hover:bg-white/95 dark:hover:bg-zinc-900/80 hover:-translate-y-0.5 transition-all duration-200"
-                  >
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1.5 text-xs font-extrabold text-red-800 bg-red-50 dark:bg-red-950/40 px-2.5 py-1 rounded-md border border-red-100 dark:border-red-900 w-fit">
-                          <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
-                          緊急連絡
-                        </div>
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500/10 text-red-500 border border-red-500/20">
-                          <span className="w-1 h-1 rounded-full bg-red-500 animate-pulse" />
-                          24時間受付
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3 pt-1">
-                        <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white shadow-sm shrink-0 bg-gradient-to-br from-red-500 to-rose-600 text-xs">
-                          緊
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <h4 className="text-sm font-black text-primary leading-tight">ケガやトラブルの際電話をする</h4>
-                          <div className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
-                            <Phone className="h-3.5 w-3.5 shrink-0" />
-                            <span className="font-mono">📞 090-9854-6498</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    {user.role === "admin" && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        asChild
-                        onClick={(e) => e.stopPropagation()}
-                        className="w-full text-xs font-bold text-red-700 border-red-200 hover:bg-red-50/50"
-                      >
-                        <a href="tel:090-9854-6498">📞 電話をかける</a>
-                      </Button>
-                    )}
-                  </div>
-                </div>
-
-              {user.role !== "admin" && (
-                <div className="text-xs text-muted-foreground bg-muted p-3 rounded-lg border mt-4">
-                  ※ 企業アカウントからは連絡先確認のみ行えます。メール送信は管理ポータル側へご依頼ください。
-                </div>
-              )}
-
-              {/* Dialog for emailing experts */}
-              <Dialog open={isMailModalOpen} onOpenChange={setIsMailModalOpen}>
-                <DialogContent className="max-w-2xl bg-background border rounded-lg shadow-lg">
-                  <DialogHeader>
-                    <DialogTitle className="text-lg font-bold flex items-center gap-2 text-primary">
-                      <Mail className="h-5 w-5 text-indigo-500" />
-                      専門家へのメール作成
-                    </DialogTitle>
-                    <DialogDescription className="text-xs">
-                      宛先：{recipientName} ({recipientEmail})
-                    </DialogDescription>
-                  </DialogHeader>
-
-                  <form onSubmit={handleSendManualEmail} className="space-y-4 py-3">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="template" className="text-xs font-bold text-muted-foreground">
-                        クイックテンプレートを選択
-                      </Label>
-                      <Select value={selectedTemplate} onValueChange={handleTemplateChange}>
-                        <SelectTrigger id="template" className="h-10">
-                          <SelectValue placeholder="テンプレートを選択して自動入力" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">指定なし（白紙から作成）</SelectItem>
-                          <SelectItem value="visa">在留期限更新に関する書類送付（行政書士宛）</SelectItem>
-                          <SelectItem value="legal">新規雇用契約のリーガルチェック依頼（弁護士宛）</SelectItem>
-                          <SelectItem value="subsidy">助成金申請・労務管理のご相談（社労士宛）</SelectItem>
-                          <SelectItem value="translation">通訳・翻訳の依頼・相談（通訳・翻訳者宛）</SelectItem>
-                          <SelectItem value="tax">税務相談・決算申告に関するご相談（税理士宛）</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label htmlFor="subject" className="text-xs font-bold text-muted-foreground">
-                        件名 <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        id="subject"
-                        required
-                        value={mailSubject}
-                        onChange={(e) => setMailSubject(e.target.value)}
-                        placeholder="メールの件名を入力"
-                        className="h-10"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label htmlFor="message" className="text-xs font-bold text-muted-foreground">
-                        本文 <span className="text-destructive">*</span>
-                      </Label>
-                      <Textarea
-                        id="message"
-                        required
-                        value={mailMessage}
-                        onChange={(e) => setMailMessage(e.target.value)}
-                        placeholder="メール本文を入力してください"
-                        className="min-h-[220px] leading-relaxed text-sm font-mono"
-                      />
-                    </div>
-
-                    <DialogFooter className="pt-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          setIsMailModalOpen(false);
-                          setMailSubject("");
-                          setMailMessage("");
-                          setSelectedTemplate("none");
-                        }}
-                        disabled={isSendingMail}
-                      >
-                        キャンセル
-                      </Button>
-                      <Button
-                        type="submit"
-                        className="bg-[#1A3A7B] text-white hover:bg-[#1A3A7B]/95 font-semibold flex items-center gap-1.5"
-                        disabled={isSendingMail}
-                      >
-                        {isSendingMail ? (
-                          <RefreshCw className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Send className="h-4 w-4" />
-                        )}
-                        送信する
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
-
-              {/* Dialog for adding option */}
-              <Dialog open={isOptionModalOpen} onOpenChange={setIsOptionModalOpen}>
-                <DialogContent className="max-w-md bg-background border rounded-lg shadow-lg">
-                  <DialogHeader>
-                    <DialogTitle className="text-lg font-bold flex items-center gap-2 text-primary">
-                      <Plus className="h-5 w-5 text-indigo-500" />
-                      オプション機能の追加
-                    </DialogTitle>
-                    <DialogDescription className="text-xs">
-                      本企業（{company.name}）に個別料金のオプション機能を追加します。
-                    </DialogDescription>
-                  </DialogHeader>
-
-                  <form onSubmit={handleSaveOption} className="space-y-5 py-3">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="option-select" className="text-xs font-bold text-muted-foreground">
-                        追加するオプションを選択
-                      </Label>
-                      <Select 
-                        value={selectedOptionKey} 
-                        onValueChange={(val) => {
-                          setSelectedOptionKey(val);
-                          setIsOptionConsentChecked(false);
-                        }}
-                      >
-                        <SelectTrigger id="option-select" className="h-10 text-xs font-semibold">
-                          <SelectValue placeholder="オプションを選択してください" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {optionsToDisplay.map((opt) => (
-                            <SelectItem key={opt.key} value={opt.key} className="text-xs font-medium">
-                              {opt.label}
-                            </SelectItem>
-                          ))}
-                          {optionsToDisplay.length === 0 && (
-                            <SelectItem value="none" disabled>
-                              追加可能なオプションはありません
-                            </SelectItem>
+                        <div>
+                          <h4 className="font-bold text-primary">
+                            {typeof feature === "string" ? feature : feature.title}
+                          </h4>
+                          {typeof feature !== "string" && feature.desc && (
+                            <p className="text-[11px] text-muted-foreground mt-0.5">{feature.desc}</p>
                           )}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/* Dynamic Message Box */}
-                    {(() => {
-                      const selectedOpt = AVAILABLE_OPTIONS.find(o => o.key === selectedOptionKey);
-                      if (!selectedOpt) return null;
-                      return (
-                        <div className="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 rounded-lg text-xs leading-relaxed font-semibold">
-                          お問い合わせいただいた {selectedOpt.name} を追加しますか？ 追加料金 {selectedOpt.amount} 円になりますので、同意する際は同意のチェックボタンの後に追加をクリックしてください。同意いただけない場合は追加できませんのでご了承ください。
                         </div>
-                      );
-                    })()}
-
-                    {/* Consent checkbox */}
-                    {selectedOptionKey && (
-                      <div className="flex items-center gap-2.5 pt-1">
-                        <input
-                          id="option-consent"
-                          type="checkbox"
-                          checked={isOptionConsentChecked}
-                          onChange={(e) => setIsOptionConsentChecked(e.target.checked)}
-                          className="h-4.5 w-4.5 rounded border-gray-300 accent-[#1A3A7B] cursor-pointer"
-                        />
-                        <Label htmlFor="option-consent" className="text-xs font-bold text-primary select-none cursor-pointer">
-                          上記内容に同意する
-                        </Label>
                       </div>
-                    )}
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
-                    <DialogFooter className="pt-2 border-t mt-4 flex justify-end gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          setIsOptionModalOpen(false);
-                          setSelectedOptionKey("");
-                          setIsOptionConsentChecked(false);
-                        }}
-                        disabled={isSavingOption}
-                        className="text-xs font-bold"
-                      >
-                        キャンセル
-                      </Button>
-                      <Button
-                        type="submit"
-                        className="bg-[#1A3A7B] text-white hover:bg-[#1A3A7B]/95 font-bold text-xs flex items-center gap-1.5"
-                        disabled={!selectedOptionKey || !isOptionConsentChecked || isSavingOption}
-                      >
-                        {isSavingOption ? (
-                          <RefreshCw className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Plus className="h-4 w-4" />
-                        )}
-                        追加
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
-            </CardContent>
-          </Card>
-
-          {/* 追加の依頼履歴（サービス利用申請） */}
-          <Card className="lg:col-span-2 shadow-sm border border-border">
-            <CardHeader className="bg-muted/15 pb-4 border-b">
-              <CardTitle className="text-sm font-bold flex items-center gap-1.5 text-primary">
-                <History className="h-4.5 w-4.5 text-indigo-600" />
-                追加の依頼履歴（サービス利用申請）
-              </CardTitle>
-              <CardDescription className="text-xs">
-                これまでに申請された翻訳・通訳の依頼やオプション機能の追加などの履歴です。
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-5">
-              {requestsLoading ? (
-                <div className="flex items-center justify-center py-6 text-xs text-muted-foreground">
-                  <RefreshCw className="h-4 w-4 animate-spin mr-2" />
-                  読み込み中...
-                </div>
-              ) : requests.length === 0 ? (
-                <div className="text-center py-8 text-xs text-muted-foreground">
-                  追加の依頼履歴はありません。翻訳・通訳などのサービスは各メニューからご依頼いただけます。
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs text-left text-muted-foreground">
-                    <thead className="text-[10px] text-primary uppercase bg-muted/50 font-bold border-b">
-                      <tr>
-                        <th className="px-4 py-3">申請日</th>
-                        <th className="px-4 py-3">申請者</th>
-                        <th className="px-4 py-3">依頼内容</th>
-                        <th className="px-4 py-3">ステータス</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                      {requests.map((req) => {
-                        const dateStr = req.createdAt
-                          ? new Date(req.createdAt).toLocaleDateString("ja-JP", {
-                              year: "numeric",
-                              month: "2-digit",
-                              day: "2-digit",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })
-                          : "不明";
-                        
-                        let typeLabel = req.details || req.item || "詳細不明";
-                        if (req.type === "translation") typeLabel = req.details || "翻訳依頼";
-                        if (req.type === "interpretation") typeLabel = req.details || "通訳対応";
-                        if (req.type === "upgrade") typeLabel = req.details || "プラン変更";
-                        if (req.type === "option") {
-                          const opt = AVAILABLE_OPTIONS.find(o => o.key === req.item);
-                          typeLabel = opt ? `オプション追加: ${opt.name}` : `オプション追加: ${req.item}`;
-                        }
-
-                        const sender = req.senderName || company.contactName || "企業担当者";
-
-                        return (
-                          <tr key={req.id} className="hover:bg-muted/20">
-                            <td className="px-4 py-3.5 font-medium text-primary whitespace-nowrap">{dateStr}</td>
-                            <td className="px-4 py-3.5 text-primary">{sender}</td>
-                            <td className="px-4 py-3.5 text-primary max-w-[200px] truncate" title={typeLabel}>
-                              {typeLabel}
-                            </td>
-                            <td className="px-4 py-3.5 whitespace-nowrap">
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                req.status === "completed" || req.status === "sent" || req.status === "applied"
-                                  ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-                                  : "bg-amber-500/10 text-amber-500 border border-amber-500/20"
-                              }`}>
-                                {req.status === "completed" ? "完了" : req.status === "sent" ? "送信済" : req.status === "applied" ? "申請済" : "処理中"}
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* 緊急対応履歴 */}
-          {(() => {
-            const emergencyHistory = emailHistory.filter(h => 
-              h.type === "auto_apply" || 
-              h.subject?.includes("緊急") || 
-              h.subject?.includes("アラート") || 
-              h.message?.includes("緊急")
-            );
-
-            return (
-              <Card className="lg:col-span-2 shadow-sm border border-border">
+            {/* Right Column (2/3 width on desktop) */}
+            <div className="lg:col-span-2 space-y-6">
+              
+              {/* 3. 外部専門家 */}
+              <Card className="shadow-sm border border-border">
                 <CardHeader className="bg-muted/15 pb-4 border-b">
                   <CardTitle className="text-sm font-bold flex items-center gap-1.5 text-primary">
-                    <ShieldAlert className="h-4.5 w-4.5 text-red-500" />
-                    緊急対応履歴
+                    <Landmark className="h-4.5 w-4.5 text-indigo-600" />
+                    外部専門家・顧問ネットワーク（在留資格・労務・リーガル）
                   </CardTitle>
                   <CardDescription className="text-xs">
-                    在留期限アラート等の緊急対応や、専門家への緊急連絡履歴です。
+                    本企業を担当している士業専門家窓口です。各種手続きの代行や労務相談を行えます。
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    {/* 1. Scrivener */}
+                    <div
+                      onClick={() => {
+                        window.location.href = `mailto:${company.scrivenerEmail || "sato@legal-office.com"}`;
+                      }}
+                      className="p-4 rounded-xl border bg-white/70 dark:bg-zinc-950/60 shadow-sm flex flex-col justify-between space-y-4 cursor-pointer hover:shadow-md hover:bg-white/95 dark:hover:bg-zinc-900/80 hover:-translate-y-0.5 transition-all duration-200"
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 text-xs font-extrabold text-indigo-800 bg-indigo-50 dark:bg-indigo-950/40 px-2.5 py-1 rounded-md border border-indigo-100 dark:border-indigo-900 w-fit">
+                            <FileCheck className="h-3.5 w-3.5 shrink-0" />
+                            担当行政書士
+                          </div>
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                            <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+                            対応可能
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 pt-1">
+                          <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white shadow-sm shrink-0 bg-gradient-to-br from-blue-500 to-indigo-600 text-xs">
+                            行
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h4 className="text-sm font-black text-primary truncate">{company.scrivenerName || "佐藤 護"}</h4>
+                            <div className="text-[11px] text-muted-foreground break-all flex items-center gap-1 mt-0.5">
+                              <Mail className="h-3 w-3 shrink-0" />
+                              <span className="truncate">{company.scrivenerEmail || "sato@legal-office.com"}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      {user.role === "admin" && (company.scrivenerEmail || "sato@legal-office.com") && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openMailModal(company.scrivenerName || "佐藤 護", company.scrivenerEmail || "sato@legal-office.com", "visa");
+                          }}
+                          className="w-full text-xs font-bold text-[#1A3A7B] border-[#1A3A7B]/20 hover:bg-[#1A3A7B]/5"
+                        >
+                          ✉️ メールを送信
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* 2. Labor Consultant */}
+                    <div
+                      onClick={() => {
+                        window.location.href = `mailto:${company.laborConsultantEmail || "suzuki@sr-office.com"}`;
+                      }}
+                      className="p-4 rounded-xl border bg-white/70 dark:bg-zinc-950/60 shadow-sm flex flex-col justify-between space-y-4 cursor-pointer hover:shadow-md hover:bg-white/95 dark:hover:bg-zinc-900/80 hover:-translate-y-0.5 transition-all duration-200"
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 text-xs font-extrabold text-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-md border border-emerald-100 dark:border-emerald-900 w-fit">
+                            <Users className="h-3.5 w-3.5 shrink-0" />
+                            担当社労士
+                          </div>
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-500 border border-blue-500/20">
+                            <span className="w-1 h-1 rounded-full bg-blue-500 animate-pulse" />
+                            オンライン
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 pt-1">
+                          <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white shadow-sm shrink-0 bg-gradient-to-br from-emerald-400 to-teal-600 text-xs">
+                            労
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h4 className="text-sm font-black text-primary truncate">{company.laborConsultantName || "鈴木 茂"}</h4>
+                            <div className="text-[11px] text-muted-foreground break-all flex items-center gap-1 mt-0.5">
+                              <Mail className="h-3 w-3 shrink-0" />
+                              <span className="truncate">{company.laborConsultantEmail || "suzuki@sr-office.com"}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      {user.role === "admin" && (company.laborConsultantEmail || "suzuki@sr-office.com") && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openMailModal(company.laborConsultantName || "鈴木 茂", company.laborConsultantEmail || "suzuki@sr-office.com", "subsidy");
+                          }}
+                          className="w-full text-xs font-bold text-emerald-700 border-emerald-200 hover:bg-emerald-50/50"
+                        >
+                          ✉️ メールを送信
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* 3. Attorney */}
+                    <div
+                      onClick={() => {
+                        window.location.href = `mailto:${company.attorneyEmail || "tanaka@law-office.com"}`;
+                      }}
+                      className="p-4 rounded-xl border bg-white/70 dark:bg-zinc-950/60 shadow-sm flex flex-col justify-between space-y-4 cursor-pointer hover:shadow-md hover:bg-white/95 dark:hover:bg-zinc-900/80 hover:-translate-y-0.5 transition-all duration-200"
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-amber-800 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1 rounded-md border border-amber-100 dark:border-amber-900 w-fit">
+                            <Scale className="h-3.5 w-3.5 shrink-0" />
+                            担当弁護士
+                          </div>
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                            <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+                            対応可能
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 pt-1">
+                          <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white shadow-sm shrink-0 bg-gradient-to-br from-amber-400 to-orange-600 text-xs">
+                            弁
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h4 className="text-sm font-black text-primary truncate">{company.attorneyName || "田中 誠"}</h4>
+                            <div className="text-[11px] text-muted-foreground break-all flex items-center gap-1 mt-0.5">
+                              <Mail className="h-3 w-3 shrink-0" />
+                              <span className="truncate">{company.attorneyEmail || "tanaka@law-office.com"}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      {user.role === "admin" && (company.attorneyEmail || "tanaka@law-office.com") && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openMailModal(company.attorneyName || "田中 誠", company.attorneyEmail || "tanaka@law-office.com", "legal");
+                          }}
+                          className="w-full text-xs font-bold text-amber-700 border-amber-200 hover:bg-amber-50/50"
+                        >
+                          ✉️ メールを送信
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* 4. Translator & Interpreter Advisor */}
+                    <div
+                      onClick={() => {
+                        window.location.href = `mailto:info@mawork.jp`;
+                      }}
+                      className="p-4 rounded-xl border bg-white/70 dark:bg-zinc-950/60 shadow-sm flex flex-col justify-between space-y-4 cursor-pointer hover:shadow-md hover:bg-white/95 dark:hover:bg-zinc-900/80 hover:-translate-y-0.5 transition-all duration-200"
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 text-xs font-extrabold text-purple-800 bg-purple-50 dark:bg-purple-950/40 px-2.5 py-1 rounded-md border border-purple-100 dark:border-purple-900 w-fit">
+                            <Languages className="h-3.5 w-3.5 shrink-0" />
+                            翻訳通訳顧問
+                          </div>
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-500 border border-blue-500/20">
+                            <span className="w-1 h-1 rounded-full bg-blue-500 animate-pulse" />
+                            オンライン
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 pt-1">
+                          <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white shadow-sm shrink-0 bg-gradient-to-br from-purple-400 to-fuchsia-600 text-xs">
+                            訳
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h4 className="text-sm font-black text-primary truncate">MAWORKJP</h4>
+                            <div className="text-[11px] text-muted-foreground break-all flex items-center gap-1 mt-0.5">
+                              <Mail className="h-3 w-3 shrink-0" />
+                              <span className="truncate">info@mawork.jp</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      {user.role === "admin" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openMailModal("MAWORKJP", "info@mawork.jp", "translation");
+                          }}
+                          className="w-full text-xs font-bold text-purple-700 border-purple-200 hover:bg-purple-50/50"
+                        >
+                          ✉️ メールを送信
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* 5. Emergency Contact */}
+                    <div
+                      onClick={() => {
+                        window.location.href = `tel:090-9854-6498`;
+                      }}
+                      className="p-4 rounded-xl border bg-white/70 dark:bg-zinc-950/60 shadow-sm flex flex-col justify-between space-y-4 cursor-pointer hover:shadow-md hover:bg-white/95 dark:hover:bg-zinc-900/80 hover:-translate-y-0.5 transition-all duration-200"
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 text-xs font-extrabold text-red-800 bg-red-50 dark:bg-red-950/40 px-2.5 py-1 rounded-md border border-red-100 dark:border-red-900 w-fit">
+                            <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
+                            緊急連絡
+                          </div>
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500/10 text-red-500 border border-red-500/20">
+                            <span className="w-1 h-1 rounded-full bg-red-500 animate-pulse" />
+                            24時間受付
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 pt-1">
+                          <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white shadow-sm shrink-0 bg-gradient-to-br from-red-500 to-rose-600 text-xs">
+                            緊
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h4 className="text-sm font-black text-primary leading-tight">ケガやトラブルの際電話をする</h4>
+                            <div className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                              <Phone className="h-3.5 w-3.5 shrink-0" />
+                              <span className="font-mono">📞 090-9854-6498</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      {user.role === "admin" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          asChild
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-full text-xs font-bold text-red-700 border-red-200 hover:bg-red-50/50"
+                        >
+                          <a href="tel:090-9854-6498">📞 電話をかける</a>
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {user.role !== "admin" && (
+                    <div className="text-xs text-muted-foreground bg-muted p-3 rounded-lg border mt-4">
+                      ※ 企業アカウントからは連絡先確認のみ行えます。メール送信は管理ポータル側へご依頼ください。
+                    </div>
+                  )}
+
+                  {/* Dialog for emailing experts */}
+                  <Dialog open={isMailModalOpen} onOpenChange={setIsMailModalOpen}>
+                    <DialogContent className="max-w-2xl bg-background border rounded-lg shadow-lg">
+                      <DialogHeader>
+                        <DialogTitle className="text-lg font-bold flex items-center gap-2 text-primary">
+                          <Mail className="h-5 w-5 text-indigo-500" />
+                          専門家へのメール作成
+                        </DialogTitle>
+                        <DialogDescription className="text-xs">
+                          宛先：{recipientName} ({recipientEmail})
+                        </DialogDescription>
+                      </DialogHeader>
+
+                      <form onSubmit={handleSendManualEmail} className="space-y-4 py-3">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="template" className="text-xs font-bold text-muted-foreground">
+                            クイックテンプレートを選択
+                          </Label>
+                          <Select value={selectedTemplate} onValueChange={handleTemplateChange}>
+                            <SelectTrigger id="template" className="h-10">
+                              <SelectValue placeholder="テンプレートを選択して自動入力" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">指定なし（白紙から作成）</SelectItem>
+                              <SelectItem value="visa">在留期限更新に関する書類送付（行政書士宛）</SelectItem>
+                              <SelectItem value="legal">新規雇用契約のリーガルチェック依頼（弁護士宛）</SelectItem>
+                              <SelectItem value="subsidy">助成金申請・労務管理のご相談（社労士宛）</SelectItem>
+                              <SelectItem value="translation">通訳・翻訳の依頼・相談（通訳・翻訳者宛）</SelectItem>
+                              <SelectItem value="tax">税務相談・決算申告に関するご相談（税理士宛）</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label htmlFor="subject" className="text-xs font-bold text-muted-foreground">
+                            件名 <span className="text-destructive">*</span>
+                          </Label>
+                          <Input
+                            id="subject"
+                            required
+                            value={mailSubject}
+                            onChange={(e) => setMailSubject(e.target.value)}
+                            placeholder="メールの件名を入力"
+                            className="h-10"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label htmlFor="message" className="text-xs font-bold text-muted-foreground">
+                            本文 <span className="text-destructive">*</span>
+                          </Label>
+                          <Textarea
+                            id="message"
+                            required
+                            value={mailMessage}
+                            onChange={(e) => setMailMessage(e.target.value)}
+                            placeholder="メール本文を入力してください"
+                            className="min-h-[220px] leading-relaxed text-sm font-mono"
+                          />
+                        </div>
+
+                        <DialogFooter className="pt-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                              setIsMailModalOpen(false);
+                              setMailSubject("");
+                              setMailMessage("");
+                              setSelectedTemplate("none");
+                            }}
+                            disabled={isSendingMail}
+                          >
+                            キャンセル
+                          </Button>
+                          <Button
+                            type="submit"
+                            className="bg-[#1A3A7B] text-white hover:bg-[#1A3A7B]/95 font-semibold flex items-center gap-1.5"
+                            disabled={isSendingMail}
+                          >
+                            {isSendingMail ? (
+                              <RefreshCw className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Send className="h-4 w-4" />
+                            )}
+                            送信する
+                          </Button>
+                        </DialogFooter>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
+
+                  {/* Dialog for adding option */}
+                  <Dialog open={isOptionModalOpen} onOpenChange={setIsOptionModalOpen}>
+                    <DialogContent className="max-w-md bg-background border rounded-lg shadow-lg">
+                      <DialogHeader>
+                        <DialogTitle className="text-lg font-bold flex items-center gap-2 text-primary">
+                          <Plus className="h-5 w-5 text-indigo-500" />
+                          オプション機能の追加
+                        </DialogTitle>
+                        <DialogDescription className="text-xs">
+                          本企業（{company.name}）に個別料金のオプション機能を追加します。
+                        </DialogDescription>
+                      </DialogHeader>
+
+                      <form onSubmit={handleSaveOption} className="space-y-5 py-3">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="option-select" className="text-xs font-bold text-muted-foreground">
+                            追加するオプションを選択
+                          </Label>
+                          <Select 
+                            value={selectedOptionKey} 
+                            onValueChange={(val) => {
+                              setSelectedOptionKey(val);
+                              setIsOptionConsentChecked(false);
+                            }}
+                          >
+                            <SelectTrigger id="option-select" className="h-10 text-xs font-semibold">
+                              <SelectValue placeholder="オプションを選択してください" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {optionsToDisplay.map((opt) => (
+                                <SelectItem key={opt.key} value={opt.key} className="text-xs font-medium">
+                                  {opt.label}
+                                </SelectItem>
+                              ))}
+                              {optionsToDisplay.length === 0 && (
+                                <SelectItem value="none" disabled>
+                                  追加可能なオプションはありません
+                                </SelectItem>
+                              )}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Dynamic Message Box */}
+                        {(() => {
+                          const selectedOpt = AVAILABLE_OPTIONS.find(o => o.key === selectedOptionKey);
+                          if (!selectedOpt) return null;
+                          return (
+                            <div className="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 rounded-lg text-xs leading-relaxed font-semibold">
+                              お問い合わせいただいた {selectedOpt.name} を追加しますか？ 追加料金 {selectedOpt.amount} 円になりますので、同意する際は同意のチェックボタンの後に追加をクリックしてください。同意いただけない場合は追加できませんのでご了承ください。
+                            </div>
+                          );
+                        })()}
+
+                        {/* Consent checkbox */}
+                        {selectedOptionKey && (
+                          <div className="flex items-center gap-2.5 pt-1">
+                            <input
+                              id="option-consent"
+                              type="checkbox"
+                              checked={isOptionConsentChecked}
+                              onChange={(e) => setIsOptionConsentChecked(e.target.checked)}
+                              className="h-4.5 w-4.5 rounded border-gray-300 accent-[#1A3A7B] cursor-pointer"
+                            />
+                            <Label htmlFor="option-consent" className="text-xs font-bold text-primary select-none cursor-pointer">
+                              上記内容に同意する
+                            </Label>
+                          </div>
+                        )}
+
+                        <DialogFooter className="pt-2 border-t mt-4 flex justify-end gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                              setIsOptionModalOpen(false);
+                              setSelectedOptionKey("");
+                              setIsOptionConsentChecked(false);
+                            }}
+                            disabled={isSavingOption}
+                            className="text-xs font-bold"
+                          >
+                            キャンセル
+                          </Button>
+                          <Button
+                            type="submit"
+                            className="bg-[#1A3A7B] text-white hover:bg-[#1A3A7B]/95 font-bold text-xs flex items-center gap-1.5"
+                            disabled={!selectedOptionKey || !isOptionConsentChecked || isSavingOption}
+                          >
+                            {isSavingOption ? (
+                              <RefreshCw className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Plus className="h-4 w-4" />
+                            )}
+                            追加
+                          </Button>
+                        </DialogFooter>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              {/* 4. 採用ネットワーク */}
+              <Card className="shadow-sm border border-border bg-white dark:bg-zinc-900">
+                <CardHeader className="bg-muted/15 pb-4 border-b">
+                  <CardTitle className="text-sm font-bold flex items-center gap-1.5 text-primary">
+                    <UserPlus className="h-4.5 w-4.5 text-indigo-600" />
+                    外部連携求人・採用ネットワーク
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    外国人採用を円滑に行うための、各種求人メディアおよび提携パートナー連携状況です。
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="p-5">
-                  {historyLoading ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    
+                    {/* Partner 1 */}
+                    <div className="p-4 rounded-xl border bg-white/70 dark:bg-zinc-950/60 shadow-sm flex flex-col justify-between space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-black text-primary">MA WORK キャリア</h4>
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                          連携中
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground leading-normal">
+                        特定技能・技術人文知識国際業務の求人票をベトナム、ネパール、インドネシアの現地求職者へダイレクト配信。
+                      </p>
+                    </div>
+
+                    {/* Partner 2 */}
+                    <div className="p-4 rounded-xl border bg-white/70 dark:bg-zinc-950/60 shadow-sm flex flex-col justify-between space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-black text-primary">Indeed 求人連携</h4>
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                          連携中
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground leading-normal">
+                        Indeedの多言語検索エンジンに向けて、システムから外国人募集案件を自動インデックス連携。
+                      </p>
+                    </div>
+
+                    {/* Partner 3 */}
+                    <div className="p-4 rounded-xl border bg-white/70 dark:bg-zinc-950/60 shadow-sm flex flex-col justify-between space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-black text-primary">マイナビ転職 (グローバル)</h4>
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-500/10 text-slate-500 border border-slate-500/20">
+                          一時停止中
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground leading-normal">
+                        国内在住の転職・キャリアアップ希望者向けのイベントおよび求人広告掲載サービスとのAPI連携。
+                      </p>
+                    </div>
+
+                    {/* Partner 4 */}
+                    <div className="p-4 rounded-xl border bg-white/70 dark:bg-zinc-950/60 shadow-sm flex flex-col justify-between space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-black text-primary">提携海外送り出し機関</h4>
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-500 border border-blue-500/20">
+                          対応可能
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground leading-normal">
+                        ベトナム・ネパール・インドネシア・フィリピンの政府公認送り出し機関による現地事前研修プログラムとの提携。
+                      </p>
+                    </div>
+
+                  </div>
+                </CardContent>
+              </Card>
+
+            </div>
+
+          </div>
+
+          {/* 追加の依頼履歴 と 緊急対応履歴 */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+            <div className="lg:col-span-3 space-y-6">
+              {/* 追加の依頼履歴（サービス利用申請） */}
+              <Card className="shadow-sm border border-border bg-white dark:bg-zinc-900">
+                <CardHeader className="bg-muted/15 pb-4 border-b">
+                  <CardTitle className="text-sm font-bold flex items-center gap-1.5 text-primary">
+                    <History className="h-4.5 w-4.5 text-[#1A3A7B]" />
+                    追加の依頼履歴（サービス利用申請）
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    これまでに申請された翻訳・通訳の依頼やオプション機能の追加などの履歴です。
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-5">
+                  {requestsLoading ? (
                     <div className="flex items-center justify-center py-6 text-xs text-muted-foreground">
                       <RefreshCw className="h-4 w-4 animate-spin mr-2" />
                       読み込み中...
                     </div>
-                  ) : emergencyHistory.length === 0 ? (
-                    <div className="flex items-center gap-3 p-4 rounded-xl border border-emerald-100 bg-emerald-50/20 dark:bg-emerald-950/10 text-emerald-800 dark:text-emerald-300">
-                      <ShieldCheck className="h-5 w-5 text-emerald-500 shrink-0" />
-                      <div className="text-xs leading-relaxed font-semibold">
-                        現在、緊急対応が必要な事項はありません。すべてのステータスは正常です。
-                      </div>
+                  ) : requests.length === 0 ? (
+                    <div className="text-center py-8 text-xs text-muted-foreground">
+                      追加の依頼履歴はありません。翻訳・通訳などのサービスは各メニューからご依頼いただけます。
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="w-full text-xs text-left text-muted-foreground">
                         <thead className="text-[10px] text-primary uppercase bg-muted/50 font-bold border-b">
                           <tr>
-                            <th className="px-4 py-3">対応日時</th>
-                            <th className="px-4 py-3">対象者 / 連絡先</th>
-                            <th className="px-4 py-3">対応内容</th>
-                            <th className="px-4 py-3">状況</th>
+                            <th className="px-4 py-3">申請日</th>
+                            <th className="px-4 py-3">申請者</th>
+                            <th className="px-4 py-3">依頼内容</th>
+                            <th className="px-4 py-3">ステータス</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y">
-                          {emergencyHistory.map((h) => {
-                            const dateStr = h.sentAt
-                              ? new Date(h.sentAt).toLocaleDateString("ja-JP", {
+                          {requests.map((req) => {
+                            const dateStr = req.createdAt
+                              ? new Date(req.createdAt).toLocaleDateString("ja-JP", {
                                   year: "numeric",
                                   month: "2-digit",
                                   day: "2-digit",
@@ -2541,20 +2167,32 @@ export default function CompanyDetailPage() {
                                   minute: "2-digit",
                                 })
                               : "不明";
+                            
+                            let typeLabel = req.details || req.item || "詳細不明";
+                            if (req.type === "translation") typeLabel = req.details || "翻訳依頼";
+                            if (req.type === "interpretation") typeLabel = req.details || "通訳対応";
+                            if (req.type === "upgrade") typeLabel = req.details || "プラン変更";
+                            if (req.type === "option") {
+                              const opt = AVAILABLE_OPTIONS.find(o => o.key === req.item);
+                              typeLabel = opt ? `オプション追加: ${opt.name}` : `オプション追加: ${req.item}`;
+                            }
+
+                            const sender = req.senderName || company.contactName || "企業担当者";
 
                             return (
-                              <tr key={h.id} className="hover:bg-muted/20">
+                              <tr key={req.id} className="hover:bg-muted/20">
                                 <td className="px-4 py-3.5 font-medium text-primary whitespace-nowrap">{dateStr}</td>
-                                <td className="px-4 py-3.5 text-primary">
-                                  <div className="font-bold">{h.expertName}</div>
-                                  <div className="text-[10px] text-muted-foreground">{h.expertEmail}</div>
-                                </td>
-                                <td className="px-4 py-3.5 text-primary max-w-[200px] truncate" title={h.subject}>
-                                  {h.subject}
+                                <td className="px-4 py-3.5 text-primary">{sender}</td>
+                                <td className="px-4 py-3.5 text-primary max-w-[200px] truncate" title={typeLabel}>
+                                  {typeLabel}
                                 </td>
                                 <td className="px-4 py-3.5 whitespace-nowrap">
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/10 text-red-500 border border-red-500/20">
-                                    対応済
+                                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                    req.status === "completed" || req.status === "sent" || req.status === "applied"
+                                      ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                                      : "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                                  }`}>
+                                    {req.status === "completed" ? "完了" : req.status === "sent" ? "送信済" : req.status === "applied" ? "申請済" : "処理中"}
                                   </span>
                                 </td>
                               </tr>
@@ -2566,10 +2204,92 @@ export default function CompanyDetailPage() {
                   )}
                 </CardContent>
               </Card>
-            );
-          })()}
-        </div>
-      </TabsContent>
+
+              {/* 緊急対応履歴 */}
+              {(() => {
+                const emergencyHistory = emailHistory.filter(h => 
+                  h.type === "auto_apply" || 
+                  h.subject?.includes("緊急") || 
+                  h.subject?.includes("アラート") || 
+                  h.message?.includes("緊急")
+                );
+
+                return (
+                  <Card className="shadow-sm border border-border bg-white dark:bg-zinc-900">
+                    <CardHeader className="bg-muted/15 pb-4 border-b">
+                      <CardTitle className="text-sm font-bold flex items-center gap-1.5 text-primary">
+                        <ShieldAlert className="h-4.5 w-4.5 text-red-500" />
+                        緊急対応履歴
+                      </CardTitle>
+                      <CardDescription className="text-xs">
+                        在留期限アラート等の緊急対応や、専門家への緊急連絡履歴です。
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-5">
+                      {historyLoading ? (
+                        <div className="flex items-center justify-center py-6 text-xs text-muted-foreground">
+                          <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                          読み込み中...
+                        </div>
+                      ) : emergencyHistory.length === 0 ? (
+                        <div className="flex items-center gap-3 p-4 rounded-xl border border-emerald-100 bg-emerald-50/20 dark:bg-emerald-950/10 text-emerald-800 dark:text-emerald-300">
+                          <ShieldCheck className="h-5 w-5 text-emerald-500 shrink-0" />
+                          <div className="text-xs leading-relaxed font-semibold">
+                            現在、緊急対応が必要な事項はありません。すべてのステータスは正常です。
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-xs text-left text-muted-foreground">
+                            <thead className="text-[10px] text-primary uppercase bg-muted/50 font-bold border-b">
+                              <tr>
+                                <th className="px-4 py-3">対応日時</th>
+                                <th className="px-4 py-3">対象者 / 連絡先</th>
+                                <th className="px-4 py-3">対応内容</th>
+                                <th className="px-4 py-3">状況</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y">
+                              {emergencyHistory.map((h) => {
+                                const dateStr = h.sentAt
+                                  ? new Date(h.sentAt).toLocaleDateString("ja-JP", {
+                                      year: "numeric",
+                                      month: "2-digit",
+                                      day: "2-digit",
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })
+                                  : "不明";
+
+                                return (
+                                  <tr key={h.id} className="hover:bg-muted/20">
+                                    <td className="px-4 py-3.5 font-medium text-primary whitespace-nowrap">{dateStr}</td>
+                                    <td className="px-4 py-3.5 text-primary">
+                                      <div className="font-bold">{h.expertName}</div>
+                                      <div className="text-[10px] text-muted-foreground">{h.expertEmail}</div>
+                                    </td>
+                                    <td className="px-4 py-3.5 text-primary max-w-[200px] truncate" title={h.subject}>
+                                      {h.subject}
+                                    </td>
+                                    <td className="px-4 py-3.5 whitespace-nowrap">
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/10 text-red-500 border border-red-500/20">
+                                        対応済
+                                      </span>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })()}
+            </div>
+          </div>
+        </TabsContent>
 
         {/* TAB 2: EMPLOYEE LIST (FULL FUNCTIONALITY TAB) */}
         <TabsContent value="employees" className="outline-none focus:ring-0">
