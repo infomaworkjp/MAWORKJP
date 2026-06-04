@@ -580,7 +580,7 @@ export default function DashboardPage() {
         head: profileHeaders,
         body: profileRows,
         styles: { font: fontName, fontSize: 9 },
-        headStyles: { fillColor: [26, 58, 123] },
+        headStyles: { fillColor: [26, 58, 123], font: fontName },
         margin: { left: margin, right: margin }
       });
 
@@ -613,7 +613,7 @@ export default function DashboardPage() {
         head: riskHeaders,
         body: riskRows,
         styles: { font: fontName, fontSize: 9 },
-        headStyles: { fillColor: [26, 58, 123] },
+        headStyles: { fillColor: [26, 58, 123], font: fontName },
         margin: { left: margin, right: margin }
       });
 
@@ -707,7 +707,7 @@ export default function DashboardPage() {
           head: tableHeaders,
           body: tableRows,
           styles: { font: fontName, fontSize: 8.5, cellPadding: 3.5 },
-          headStyles: { fillColor: [26, 58, 123] },
+          headStyles: { fillColor: [26, 58, 123], font: fontName },
           margin: { left: margin, right: margin }
         });
       }
@@ -791,7 +791,7 @@ export default function DashboardPage() {
           head: tableHeaders,
           body: tableRows,
           styles: { font: fontName, fontSize: 8.5, cellPadding: 3.5 },
-          headStyles: { fillColor: [26, 58, 123] },
+          headStyles: { fillColor: [26, 58, 123], font: fontName },
           margin: { left: margin, right: margin }
         });
       }

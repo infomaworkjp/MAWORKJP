@@ -925,6 +925,7 @@ export default function CompanyDetailPage() {
           fillColor: [26, 58, 123], // #1A3A7B primary brand color
           textColor: [255, 255, 255],
           fontStyle: "normal",
+          font: fontName,
         },
         columnStyles: {
           0: { cellWidth: 50 }, // Name
@@ -1112,6 +1113,7 @@ export default function CompanyDetailPage() {
           fillColor: [26, 58, 123], // Brand color #1A3A7B
           textColor: [255, 255, 255],
           fontStyle: "normal",
+          font: fontName,
         },
         columnStyles: {
           0: { cellWidth: 90 }, // Audit item
