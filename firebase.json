@@ -1,6 +1,7 @@
 {
   "apphosting": {
     "backendId": "ma-work-jp-portal",
-    "rootDir": "./"
+    "rootDir": "./",
+    "alwaysDeployFromSource": true
   }
 }

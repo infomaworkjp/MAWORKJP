@@ -192,6 +192,7 @@ export default function CompanyDetailPage() {
   const [loading, setLoading] = useState(true);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("profile");
+  const [employeeFilter, setEmployeeFilter] = useState<string | null>(null);
 
   // Option Modal State
   const [isOptionModalOpen, setIsOptionModalOpen] = useState(false);
@@ -318,6 +319,10 @@ export default function CompanyDetailPage() {
       const tab = searchParams.get("tab");
       if (tab) {
         setActiveTab(tab);
+      }
+      const filter = searchParams.get("filter");
+      if (filter) {
+        setEmployeeFilter(filter);
       }
     }
   }, []);
@@ -2723,91 +2728,179 @@ export default function CompanyDetailPage() {
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              {employees.length === 0 ? (
-                <div className="py-16 text-center text-muted-foreground flex flex-col items-center gap-3">
-                  <Users className="h-12 w-12 text-muted-foreground/50" />
-                  <div>
-                    <p className="font-bold text-sm">所属する外国人従業員が登録されていません。</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">本番の最初のデータを登録してください。</p>
-                  </div>
-                  {user.role === "admin" && (
-                    <Button onClick={handleOpenCreateEmpModal} className="mt-2 bg-[#1A3A7B] text-white text-xs font-bold">
-                      <Plus className="h-3.5 w-3.5 mr-1" />
-                      従業員を追加する
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse text-sm">
-                    <thead>
-                      <tr className="border-b bg-muted/20 text-xs font-bold text-muted-foreground">
-                        <th className="p-4">氏名</th>
-                        <th className="p-4">国籍</th>
-                        <th className="p-4">在留資格</th>
-                        <th className="p-4">期限満了日</th>
-                        <th className="p-4">ステータス</th>
-                        {user.role === "admin" && <th className="p-4 text-right">管理操作</th>}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {employees.map((emp) => {
-                        let statusBadge = "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200";
-                        let statusText = "有効";
+              {(() => {
+                const now = new Date();
+                const threeMonthsLater = new Date();
+                threeMonthsLater.setDate(now.getDate() + 90);
 
-                        if (emp.status === "expiring_soon") {
-                          statusBadge = "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border-amber-200";
-                          statusText = "更新手続き中";
-                        } else if (emp.status === "expired") {
-                          statusBadge = "bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300 border-red-200";
-                          statusText = "期限切れ警告";
-                        } else if (emp.status === "resigned") {
-                          statusBadge = "bg-slate-100 text-slate-800 dark:bg-zinc-800 dark:text-zinc-300 border-slate-200";
-                          statusText = "退職・帰国";
-                        }
+                const parseDateStr = (dateStr: string | null | undefined): Date | null => {
+                  if (!dateStr) return null;
+                  const cleaned = dateStr.trim().replace(/\//g, "-");
+                  const d = new Date(cleaned);
+                  return isNaN(d.getTime()) ? null : d;
+                };
 
-                        return (
-                          <tr key={emp.id} className="border-b hover:bg-muted/15 transition-colors font-medium">
-                            <td className="p-4 font-bold text-primary">{emp.name}</td>
-                            <td className="p-4 text-muted-foreground">{emp.nationality}</td>
-                            <td className="p-4">
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-semibold bg-secondary text-secondary-foreground border">
-                                {emp.statusOfResidence}
-                              </span>
-                            </td>
-                            <td className="p-4 text-muted-foreground font-mono">{emp.expirationDate}</td>
-                            <td className="p-4">
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold border ${statusBadge}`}>
-                                {statusText}
-                              </span>
-                            </td>
-                            {user.role === "admin" && (
-                              <td className="p-4 text-right space-x-1.5">
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  onClick={() => handleOpenEditEmpModal(emp)} 
-                                  className="h-8 w-8 text-muted-foreground hover:text-primary border"
-                                >
-                                  <Edit2 className="h-3.5 w-3.5" />
-                                </Button>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  onClick={() => handleDeleteEmployee(emp.id, emp.name)} 
-                                  className="h-8 w-8 text-destructive hover:text-destructive/80 border hover:bg-destructive/5"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
+                const parseContractEndDate = (period: string | null | undefined): Date | null => {
+                  if (!period) return null;
+                  const cleaned = period.trim();
+                  if (cleaned.includes("~")) {
+                    const parts = cleaned.split("~");
+                    const endDateStr = parts[parts.length - 1].trim();
+                    return parseDateStr(endDateStr);
+                  }
+                  return parseDateStr(cleaned);
+                };
+
+                const filteredEmployees = employees.filter(emp => {
+                  if (!employeeFilter) return true;
+                  if (employeeFilter === "visa") {
+                    const expDate = parseDateStr(emp.expirationDate);
+                    return expDate !== null && expDate >= now && expDate <= threeMonthsLater;
+                  }
+                  if (employeeFilter === "contract") {
+                    const endDate = parseContractEndDate(emp.contractPeriod);
+                    return endDate !== null && endDate >= now && endDate <= threeMonthsLater;
+                  }
+                  if (employeeFilter === "expired") {
+                    const expDate = parseDateStr(emp.expirationDate);
+                    const isVisaExpired = expDate !== null && expDate < now;
+                    const endDate = parseContractEndDate(emp.contractPeriod);
+                    const isContractExpired = endDate !== null && endDate < now;
+                    return isVisaExpired || isContractExpired;
+                  }
+                  return true;
+                });
+
+                if (employees.length === 0) {
+                  return (
+                    <div className="py-16 text-center text-muted-foreground flex flex-col items-center gap-3">
+                      <Users className="h-12 w-12 text-muted-foreground/50" />
+                      <div>
+                        <p className="font-bold text-sm">所属する外国人従業員が登録されていません。</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">本番の最初のデータを登録してください。</p>
+                      </div>
+                      {user.role === "admin" && (
+                        <Button onClick={handleOpenCreateEmpModal} className="mt-2 bg-[#1A3A7B] text-white text-xs font-bold">
+                          <Plus className="h-3.5 w-3.5 mr-1" />
+                          従業員を追加する
+                        </Button>
+                      )}
+                    </div>
+                  );
+                }
+
+                if (filteredEmployees.length === 0) {
+                  return (
+                    <div className="py-16 text-center text-muted-foreground flex flex-col items-center gap-3">
+                      <Users className="h-12 w-12 text-muted-foreground/50" />
+                      <div>
+                        <p className="font-bold text-sm">対象の従業員はいません。</p>
+                        {employeeFilter && (
+                          <Button 
+                            variant="link" 
+                            onClick={() => setEmployeeFilter(null)}
+                            className="text-xs text-red-650 font-bold mt-1"
+                          >
+                            フィルターを解除してすべて表示する
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="overflow-x-auto">
+                    {employeeFilter && (
+                      <div className="p-4 bg-indigo-50/50 dark:bg-zinc-950 border-b flex items-center justify-between gap-4 text-xs font-bold text-indigo-950 dark:text-indigo-200">
+                        <span className="flex items-center gap-2">
+                          <span className="h-2 w-2 bg-[#1A3A7B] rounded-full animate-ping" />
+                          フィルター適用中: {
+                            employeeFilter === "visa" ? "在留カード更新対象（3ヶ月以内）" :
+                            employeeFilter === "contract" ? "契約更新対象（3ヶ月以内）" :
+                            employeeFilter === "expired" ? "期限切れ・超過対象者" : ""
+                          } ({filteredEmployees.length}名)
+                        </span>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => setEmployeeFilter(null)}
+                          className="text-xs h-7 text-red-600 hover:text-red-700 hover:bg-red-50 font-bold px-2 py-1 rounded"
+                        >
+                          クリアする
+                        </Button>
+                      </div>
+                    )}
+                    <table className="w-full text-left border-collapse text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/20 text-xs font-bold text-muted-foreground">
+                          <th className="p-4">氏名</th>
+                          <th className="p-4">国籍</th>
+                          <th className="p-4">在留資格</th>
+                          <th className="p-4">期限満了日</th>
+                          <th className="p-4">ステータス</th>
+                          {user.role === "admin" && <th className="p-4 text-right">管理操作</th>}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredEmployees.map((emp) => {
+                          let statusBadge = "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200";
+                          let statusText = "有効";
+
+                          if (emp.status === "expiring_soon") {
+                            statusBadge = "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border-amber-200";
+                            statusText = "更新手続き中";
+                          } else if (emp.status === "expired") {
+                            statusBadge = "bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300 border-red-200";
+                            statusText = "期限切れ警告";
+                          } else if (emp.status === "resigned") {
+                            statusBadge = "bg-slate-100 text-slate-800 dark:bg-zinc-800 dark:text-zinc-300 border-slate-200";
+                            statusText = "退職・帰国";
+                          }
+
+                          return (
+                            <tr key={emp.id} className="border-b hover:bg-muted/15 transition-colors font-medium">
+                              <td className="p-4 font-bold text-primary">{emp.name}</td>
+                              <td className="p-4 text-muted-foreground">{emp.nationality}</td>
+                              <td className="p-4">
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-semibold bg-secondary text-secondary-foreground border">
+                                  {emp.statusOfResidence}
+                                </span>
                               </td>
-                            )}
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                              <td className="p-4 text-muted-foreground font-mono">{emp.expirationDate}</td>
+                              <td className="p-4">
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold border ${statusBadge}`}>
+                                  {statusText}
+                                </span>
+                              </td>
+                              {user.role === "admin" && (
+                                <td className="p-4 text-right space-x-1.5">
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    onClick={() => handleOpenEditEmpModal(emp)} 
+                                    className="h-8 w-8 text-muted-foreground hover:text-primary border"
+                                  >
+                                    <Edit2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    onClick={() => handleDeleteEmployee(emp.id, emp.name)} 
+                                    className="h-8 w-8 text-destructive hover:text-destructive/80 border hover:bg-destructive/5"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </td>
+                              )}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
             </CardContent>
           </Card>
         </TabsContent>

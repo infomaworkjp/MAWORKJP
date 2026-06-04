@@ -802,1405 +802,273 @@ export default function DashboardPage() {
     }
   };
 
-  const downloadIndividualRiskReport = async () => {
-    if (!company) return;
-    setIsExporting("individual");
-    toast({
-      title: "レポート出力中",
-      description: "従業員別個別リスクレポートを生成しています。しばらくお待ちください...",
+  if (user?.role === "company") {
+    const now = new Date();
+    
+    const parseDateStr = (dateStr: string | null | undefined): Date | null => {
+      if (!dateStr) return null;
+      const cleaned = dateStr.trim().replace(/\//g, "-");
+      const d = new Date(cleaned);
+      return isNaN(d.getTime()) ? null : d;
+    };
+
+    const parseContractEndDate = (period: string | null | undefined): Date | null => {
+      if (!period) return null;
+      const cleaned = period.trim();
+      if (cleaned.includes("~")) {
+        const parts = cleaned.split("~");
+        const endDateStr = parts[parts.length - 1].trim();
+        return parseDateStr(endDateStr);
+      }
+      return parseDateStr(cleaned);
+    };
+
+    const threeMonthsLater = new Date();
+    threeMonthsLater.setDate(now.getDate() + 90);
+
+    // 1. Expired Visas
+    const expiredVisaEmployees = employees.filter(emp => {
+      const expDate = parseDateStr(emp.expirationDate);
+      return expDate !== null && expDate < now;
     });
 
-    const fontBase64 = await fetchFontBase64();
-    try {
-      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      const fontName = fontBase64 ? "NotoSansJP" : "helvetica";
-      if (fontBase64) {
-        doc.addFileToVFS("NotoSansJP-Regular.ttf", fontBase64);
-        doc.addFont("NotoSansJP-Regular.ttf", "NotoSansJP", "normal");
-      }
-      doc.setFont(fontName);
+    // 2. Expired Contracts
+    const expiredContractEmployees = employees.filter(emp => {
+      const endDate = parseContractEndDate(emp.contractPeriod);
+      return endDate !== null && endDate < now;
+    });
 
-      const margin = 15;
-      doc.setFontSize(10);
-      doc.setTextColor(100, 116, 139);
-      doc.text("MA WORK JP - Compliance Report", 210 - margin, 15, { align: "right" });
+    // 3. Expiring Visas in 3 months (excluding expired)
+    const expiringVisaEmployees = employees.filter(emp => {
+      const expDate = parseDateStr(emp.expirationDate);
+      return expDate !== null && expDate >= now && expDate <= threeMonthsLater;
+    });
 
-      doc.setFontSize(18);
-      doc.setTextColor(26, 58, 123);
-      doc.text("従業員別個別リスクレポート", margin, 25);
+    // 4. Expiring Contracts in 3 months (excluding expired)
+    const expiringContractEmployees = employees.filter(emp => {
+      const endDate = parseContractEndDate(emp.contractPeriod);
+      return endDate !== null && endDate >= now && endDate <= threeMonthsLater;
+    });
 
-      doc.setFontSize(9);
-      doc.setTextColor(71, 85, 105);
-      doc.text(`対象範囲: 全管理対象外国人従業員  |  出力日時: ${new Date().toLocaleString("ja-JP")}`, margin, 32);
-
-      doc.setDrawColor(226, 232, 240);
-      doc.setLineWidth(0.5);
-      doc.line(margin, 35, 210 - margin, 35);
-
-      if (employees.length === 0) {
-        doc.setFontSize(11);
-        doc.setTextColor(71, 85, 105);
-        doc.text("管理台帳に登録されている従業員はいません。", margin, 48);
-      } else {
-        const tableHeaders = [["氏名", "国籍", "在留資格", "在留期限", "カード番号", "リスクスコア評価"]];
-        const tableRows = employees.map((emp) => {
-          const expired = emp.status === "expired";
-          const expiring = emp.status === "expiring_soon";
-          const missing = !emp.cardNumber || !emp.passportNumber || !emp.address;
-          
-          let score = "低リスク (安全)";
-          if (expired) {
-            score = "🚨 高リスク (期限超過)";
-          } else if (expiring) {
-            score = "⚠️ 中リスク (期限間近)";
-          } else if (missing) {
-            score = "⚠️ 中リスク (書類不足)";
-          }
-
-          return [
-            emp.name || "",
-            emp.nationality || "",
-            emp.statusOfResidence || "",
-            emp.expirationDate || "未設定",
-            emp.cardNumber || "未設定",
-            score
-          ];
-        });
-
-        autoTable(doc, {
-          startY: 42,
-          head: tableHeaders,
-          body: tableRows,
-          styles: { font: fontName, fontSize: 8.5, cellPadding: 3.5 },
-          headStyles: { fillColor: [26, 58, 123] },
-          margin: { left: margin, right: margin }
-        });
-      }
-
-      doc.save(`${company.name}_従業員別個別リスクレポート.pdf`);
-      toast({ title: "レポート出力完了", description: "PDFファイルのダウンロードが完了しました。" });
-    } catch (err: any) {
-      console.error(err);
-      toast({ title: "出力エラー", description: "PDFの生成に失敗しました。", variant: "destructive" });
-    } finally {
-      setIsExporting(null);
-    }
-  };
-
-  const m = metrics || {
-    totalCompanies: 0,
-    totalEmployees: 0,
-    renewalsIn3MonthsCount: 0,
-    alertsCount: 0,
-    upcomingRenewals: [],
-    alerts: [],
-    companies: [],
-    companyContractPdfUrl: null,
-    companyContractExpirationDate: null,
-    companyContractDaysLeft: null,
-    employeeContractRenewalsCount: 0,
-  };
-
-  if (user?.role === "company") {
-    const isContractExpiringWarning = m.companyContractDaysLeft !== null && m.companyContractDaysLeft !== undefined && m.companyContractDaysLeft <= 30;
-    const planType = company?.plan_type || "entry";
-    const currentPlanConfig = PLAN_CONFIGS[planType] || PLAN_CONFIGS.entry;
-
-    // Plan logic flags
-    const isSafetyLocked = ["entry", "basic"].includes(planType);
-    const isSiteVisitLocked = ["entry", "basic", "standard"].includes(planType);
-    const isProAnalysisLocked = ["entry", "basic", "standard", "advance"].includes(planType);
-    const isPremiumLocked = planType !== "premium";
+    const hasExpiredItems = expiredVisaEmployees.length > 0 || expiredContractEmployees.length > 0;
 
     return (
-      <div className="space-y-8 font-sans bg-[#F1F5F9] -m-4 sm:-m-6 md:-m-8 p-6 sm:p-8 md:p-10 min-h-[calc(100vh-4rem)]">
+      <div className="space-y-8 font-sans bg-[#F0F4FA] dark:bg-zinc-950 -m-4 sm:-m-6 md:-m-8 p-6 sm:p-8 md:p-10 min-h-[calc(100vh-4rem)]">
         {/* Welcome Title & Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 pb-6">
           <div className="flex items-center gap-3">
             <img src="/mawork-logo.jpg" alt="M-A WORK JP Logo" className="h-12 w-12 rounded-lg object-contain border shadow-sm" />
             <div className="border-l-4 border-l-[#1A3A7B] pl-4 py-1">
-              <h1 className="text-3xl font-black text-[#1e293b] tracking-tight">MA WORK JP 企業マイページ</h1>
+              <h1 className="text-3xl font-black text-[#1A3A7B] tracking-tight">MA WORK JP 企業マイページ</h1>
               <p className="text-sm text-slate-500 mt-1.5">
-                企業担当者：<span className="font-bold text-[#1e40af]">{user?.displayName}</span>
+                企業名：<span className="font-bold text-slate-800">{company?.name || "読み込み中..."}</span>
+                <span className="mx-2">|</span>
+                担当者：<span className="font-bold text-[#1A3A7B]">{user?.displayName}</span>
               </p>
             </div>
           </div>
           
-          <div className="flex items-center gap-3 self-end sm:self-auto shrink-0">
-            <div className="p-3 bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 shadow-sm text-xs font-bold flex items-center gap-4">
-              <div>
-                <span className="text-[10px] text-slate-400 block font-bold">契約プラン</span>
-                <span className="text-[#1A3A7B] dark:text-[#5C85D3]">{currentPlanConfig.name}プラン</span>
-              </div>
-              <div className="border-l pl-4">
-                <span className="text-[10px] text-slate-400 block font-bold">月額料金(税別)</span>
-                <span className="text-indigo-700 font-extrabold">{currentPlanConfig.price}円</span>
-              </div>
-              <div className="border-l pl-4">
-                <span className="text-[10px] text-slate-400 block font-bold">対象人数</span>
-                <span className="text-slate-700 dark:text-slate-300">{currentPlanConfig.headcount}</span>
-              </div>
-            </div>
-
-            {m.companyContractPdfUrl ? (
-              <Button asChild variant="outline" className="border-slate-250 hover:bg-slate-50 text-[#1e293b] font-bold text-xs shadow-sm h-10 px-4">
-                <a href={m.companyContractPdfUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5">
-                  <FileText className="h-4 w-4" />
-                  自社契約書
-                </a>
-              </Button>
-            ) : null}
-
-            {user.companyId && (
-              <Button asChild className="bg-gradient-to-r from-[#1A3A7B] to-[#2B59C3] text-white hover:from-[#1A3A7B]/90 hover:to-[#2B59C3]/90 font-bold text-xs shadow-md h-10 px-4 border-none transition-all active:scale-[0.98]">
-                <Link href={"/dashboard/companies/" + user.companyId} className="flex items-center gap-1.5">
-                  詳細プロフィール
-                  <ChevronRight className="h-4 w-4" />
-                </Link>
-              </Button>
-            )}
-          </div>
+          {user.companyId && (
+            <Button asChild className="bg-gradient-to-r from-[#1A3A7B] to-[#2B59C3] text-white hover:from-[#1A3A7B]/90 hover:to-[#2B59C3]/90 font-bold text-xs shadow-md h-10 px-4 border-none transition-all active:scale-[0.98] shrink-0">
+              <Link href={"/dashboard/companies/" + user.companyId} className="flex items-center gap-1.5">
+                詳細プロフィール
+                <ChevronRight className="h-4 w-4" />
+              </Link>
+            </Button>
+          )}
         </div>
 
-        {/* Expiration Notification Banner */}
-        {isContractExpiringWarning && (
-          <div className="p-4 bg-red-600/10 border border-red-500/30 text-red-700 dark:text-red-300 rounded-xl flex items-center gap-3 animate-pulse shadow-sm">
-            <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 shrink-0" />
-            <div className="text-xs font-bold leading-relaxed">
-              ⚠️ 契約更新時期です。自社のMA WORK JP利用契約の満了日まで残り <span className="underline font-black text-sm text-red-800 dark:text-red-400">{m.companyContractDaysLeft}</span> 日です。更新のお手続きをお願いいたします。
-            </div>
-          </div>
-        )}
-
-        {/* Dynamic Monthly Usage Progress Bars Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-slate-200 shadow-md">
-          <div className="lg:col-span-3 border-b pb-2 mb-2 flex items-center justify-between">
-            <h3 className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-1.5">
-              <BarChart2 className="h-4.5 w-4.5 text-[#1A3A7B]" />
-              当月のプラン利用制限・状況
-            </h3>
-            <span className="text-[10px] text-slate-400">毎月1日にリセットされます</span>
-          </div>
-
-          {/* Translation Usage Progress */}
-          <div className="space-y-3 p-4 border rounded-xl bg-slate-50/50 dark:bg-zinc-950/20">
-            <div className="flex items-center justify-between">
-              <span className="font-extrabold text-xs text-slate-700 dark:text-slate-300">翻訳（文書）</span>
-              <span className="text-xs font-bold font-mono">
-                {company?.usage_translation || 0} / {currentPlanConfig.translationLimit === Infinity ? "無制限" : (currentPlanConfig.translationLimit + "回")}
-              </span>
-            </div>
-            <div className="h-2.5 w-full bg-slate-200 dark:bg-zinc-800 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 transition-all"
-                style={{ 
-                  width: (currentPlanConfig.translationLimit === Infinity ? "0%" : (((company?.usage_translation || 0) / currentPlanConfig.translationLimit) * 100) + "%")
-                }}
-              />
-            </div>
-            <div className="flex items-center justify-between pt-1">
-              <span className="text-[10px] text-slate-400 font-semibold">1〜1,500文字(A4)/ページ</span>
-              <Button 
-                onClick={() => setIsTranslationModalOpen(true)}
-                size="sm" 
-                className="h-7 text-[10px] bg-[#1A3A7B] text-white font-bold px-3 hover:bg-[#1A3A7B]/90"
-              >
-                新規翻訳依頼
-              </Button>
-            </div>
-          </div>
-
-          {/* Interpretation Usage Progress */}
-          <div className="space-y-3 p-4 border rounded-xl bg-slate-50/50 dark:bg-zinc-950/20">
-            <div className="flex items-center justify-between">
-              <span className="font-extrabold text-xs text-slate-700 dark:text-slate-300">通訳対応</span>
-              <span className="text-xs font-bold font-mono">
-                {company?.usage_interpretation || 0} / {currentPlanConfig.interpretationLimit}回
-              </span>
-            </div>
-            <div className="h-2.5 w-full bg-slate-200 dark:bg-zinc-800 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-gradient-to-r from-emerald-500 to-teal-600 transition-all"
-                style={{ 
-                  width: (currentPlanConfig.interpretationLimit === 0 ? "0%" : (((company?.usage_interpretation || 0) / currentPlanConfig.interpretationLimit) * 100) + "%")
-                }}
-              />
-            </div>
-            <div className="flex items-center justify-between pt-1">
-              <span className="text-[10px] text-slate-400 font-semibold">
-                {currentPlanConfig.interpretationLimit === 0 ? "※現プラン非対応" : "オンライン・現場対応"}
-              </span>
-              <Button 
-                onClick={() => setIsInterpretationModalOpen(true)}
-                disabled={currentPlanConfig.interpretationLimit === 0}
-                size="sm" 
-                className="h-7 text-[10px] bg-emerald-700 text-white font-bold px-3 hover:bg-emerald-800"
-              >
-                通訳予約申請
-              </Button>
-            </div>
-          </div>
-
-          {/* Consultation Usage Progress */}
-          <div className="space-y-3 p-4 border rounded-xl bg-slate-50/50 dark:bg-zinc-950/20">
-            <div className="flex items-center justify-between">
-              <span className="font-extrabold text-xs text-slate-700 dark:text-slate-300">相談窓口</span>
-              <span className="text-xs font-bold text-slate-880 font-semibold">
-                {currentPlanConfig.consultationLimit}
-              </span>
-            </div>
-            <div className="p-3 bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900 rounded-lg text-[11px] font-bold leading-relaxed text-indigo-950 dark:text-indigo-200">
-              【LINE / 電話相談】
-              {["entry", "basic"].includes(planType)
-                ? ("当月LINE相談 " + (company?.usage_line || 0) + "回使用済み")
-                : "常時受付対応。ビザや労働条件についていつでもご相談ください。"}
-            </div>
-            <div className="flex justify-end pt-1">
-              <Button 
-                onClick={async () => {
-                  if (["entry", "basic"].includes(planType)) {
-                    if (!user?.companyId) return;
-                    setIsSubmittingRequest(true);
-                    try {
-                      const res = await incrementLineConsultationUsage(user.companyId);
-                      if (res.success) {
-                        const rc = await getCompanyById(user.companyId);
-                        if (rc.success) {
-                          setCompany(rc.data);
-                        }
-                        toast({ title: "LINE相談起動", description: "相談を記録しました（LINE相談カウント+1）。" });
-                      } else {
-                        toast({ title: "エラー", description: res.error || "相談カウントの更新に失敗しました" });
-                      }
-                    } catch (err) {
-                      console.error(err);
-                    } finally {
-                      setIsSubmittingRequest(false);
-                    }
-                  } else {
-                    toast({ title: "電話・メール相談窓口", description: "専属ホットラインへいつでもご連絡ください。" });
-                  }
-                }}
-                size="sm" 
-                className="h-7 text-[10px] bg-indigo-700 text-white font-bold px-3 hover:bg-indigo-850"
-              >
-                相談を開始する
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* 4 Stats Cards Grid */}
-        <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
-          <Card className="bg-white rounded-xl shadow-md border-l-4 border-l-[#1A3A7B] p-6 flex flex-col justify-between h-full hover:shadow-lg transition-shadow">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-400">登録従業員数</span>
-              <div className="p-2.5 rounded-full bg-blue-50 text-[#1A3A7B] shrink-0">
-                <Users className="h-5 w-5" />
-              </div>
-            </div>
-            <div className="mt-4">
-              <div className="text-4xl font-black text-[#1e40af] tracking-tight">
-                {m.totalEmployees}<span className="text-xs font-bold text-slate-400 ml-1">名</span>
-              </div>
-              <p className="text-[10px] text-slate-400 mt-1.5">現在自社に所属中</p>
-            </div>
-          </Card>
-
-          {(() => {
-            const hasVisaWarning = m.renewalsIn3MonthsCount > 0;
-            return (
-              <Card className={"bg-white rounded-xl shadow-md border-l-4 p-6 flex flex-col justify-between h-full hover:shadow-lg transition-shadow " + (hasVisaWarning ? "border-l-red-500 bg-red-50/5" : "border-l-[#1A3A7B]")}>
-                <div className="flex items-center justify-between">
-                  <span className={"text-xs font-bold " + (hasVisaWarning ? "text-red-700 font-black" : "text-slate-450")}>在留資格期限対象</span>
-                  <div className={"p-2.5 rounded-full shrink-0 " + (hasVisaWarning ? "bg-red-50 text-red-500" : "bg-blue-50 text-[#1A3A7B]")}>
-                    <CalendarDays className={"h-5 w-5 " + (hasVisaWarning ? "animate-pulse" : "")} />
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <div className={"text-4xl font-black tracking-tight " + (hasVisaWarning ? "text-red-600" : "text-[#1e40af]")}>
-                    {m.renewalsIn3MonthsCount}<span className="text-xs font-bold text-slate-400 ml-1">名</span>
-                  </div>
-                  <p className="text-[10px] text-slate-400 mt-1.5">3ヶ月以内の満了者（ビザ）</p>
-                </div>
-              </Card>
-            );
-          })()}
-
-          {(() => {
-            const hasContractWarning = (m.employeeContractRenewalsCount || 0) > 0;
-            return (
-              <Card className={"bg-white rounded-xl shadow-md border-l-4 p-6 flex flex-col justify-between h-full hover:shadow-lg transition-shadow " + (hasContractWarning ? "border-l-amber-500 bg-amber-50/5" : "border-l-[#1A3A7B]")}>
-                <div className="flex items-center justify-between">
-                  <span className={"text-xs font-bold " + (hasContractWarning ? "text-amber-800 font-black" : "text-slate-450")}>契約書更新対象</span>
-                  <div className={"p-2.5 rounded-full shrink-0 " + (hasContractWarning ? "bg-amber-50 text-amber-600" : "bg-blue-50 text-[#1A3A7B]")}>
-                    <FileText className="h-5 w-5" />
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <div className={"text-4xl font-black tracking-tight " + (hasContractWarning ? "text-amber-700" : "text-[#1e40af]")}>
-                    {m.employeeContractRenewalsCount || 0}<span className="text-xs font-bold text-slate-400 ml-1">件</span>
-                  </div>
-                  <p className="text-[10px] text-slate-400 mt-1.5">3ヶ月以内の契約満了（スタッフ）</p>
-                </div>
-              </Card>
-            );
-          })()}
-
-          {(() => {
-            const hasAlertWarning = m.alertsCount > 0;
-            return (
-              <Card className={"bg-white rounded-xl shadow-md border-l-4 p-6 flex flex-col justify-between h-full hover:shadow-lg transition-shadow " + (hasAlertWarning ? "border-l-red-500 bg-red-50/5" : "border-l-[#1A3A7B]")}>
-                <div className="flex items-center justify-between">
-                  <span className={"text-xs font-bold " + (hasAlertWarning ? "text-red-700 font-black" : "text-slate-450")}>アラート件数</span>
-                  <div className={"p-2.5 rounded-full shrink-0 " + (hasAlertWarning ? "bg-red-50 text-red-500" : "bg-blue-50 text-[#1A3A7B]")}>
-                    <BellRing className={"h-5 w-5 " + (hasAlertWarning ? "animate-bounce" : "")} />
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <div className={"text-4xl font-black tracking-tight " + (hasAlertWarning ? "text-red-600" : "text-[#1e40af]")}>
-                    {m.alertsCount}<span className="text-xs font-bold text-slate-400 ml-1">件</span>
-                  </div>
-                  <p className="text-[10px] text-slate-400 mt-1.5">即時対応が必要な警告</p>
-                </div>
-              </Card>
-            );
-          })()}
-        </div>
-
-        {/* Compliance Reports Section */}
-        <div className="space-y-4 pt-4">
-          <div className="flex items-center gap-2 pb-2">
-            <div className="h-6 w-1.5 bg-[#1A3A7B] rounded-full shrink-0" />
-            <h2 className="text-xl font-black text-[#1e293b] tracking-wider">
-              コンプライアンス・レポート出力
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
-            {/* Card 1: Monthly Compliance Report */}
-            <div className="bg-white border-l-4 border-l-[#1A3A7B] rounded-xl p-6 flex flex-col justify-between h-full shadow-md hover:shadow-lg transition-all duration-300">
-              <div className="flex items-start gap-4">
-                <div className="p-3 rounded-full bg-blue-50 text-[#1A3A7B] shrink-0">
-                  <ShieldCheck className="h-6 w-6" />
-                </div>
-                <div className="space-y-1">
-                  <h3 className="font-black text-base text-[#1e293b] tracking-wide">月次コンプライアンスレポート</h3>
-                  <p className="text-xs text-slate-500 leading-relaxed">組織全体の不法就労リスクと法令遵守状況の月次集計。</p>
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-t border-slate-100 pt-4 mt-6 gap-3">
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="text-slate-400 font-semibold">最新対象月:</span>
-                  <span className="font-mono font-bold text-slate-800 text-sm">2026年06月</span>
-                </div>
-                <Button 
-                  onClick={downloadMonthlyComplianceReport} 
-                  disabled={isExporting !== null}
-                  className="bg-gradient-to-r from-[#1A3A7B] to-[#2B59C3] text-white hover:from-[#1A3A7B]/90 hover:to-[#2B59C3]/90 font-bold flex items-center justify-center gap-2 rounded-lg h-9 px-4 text-xs transition-all shadow-md self-end sm:self-auto border-none active:scale-[0.98]"
-                >
-                  {isExporting === "compliance" ? (
-                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Download className="h-3.5 w-3.5" />
-                  )}
-                  PDFでダウンロード
-                </Button>
-              </div>
-            </div>
-
-            {/* Card 2: Visa Expiry & Renewal Schedule */}
-            {(() => {
-              const visaCount = getVisaExpiringIn6MonthsCount();
-              const hasVisaWarning = visaCount > 0;
-              return (
-                <div className={"bg-white border-l-4 rounded-xl p-6 flex flex-col justify-between h-full shadow-md hover:shadow-lg transition-all duration-300 " + (hasVisaWarning ? "border-l-red-500 bg-red-50/5" : "border-l-[#1A3A7B]")}>
-                  <div className="flex items-start gap-4">
-                    <div className={"p-3 rounded-full shrink-0 " + (hasVisaWarning ? "bg-red-50 text-red-600" : "bg-blue-50 text-[#1A3A7B]")}>
-                      <CalendarDays className="h-6 w-6" />
-                    </div>
-                    <div className="space-y-1">
-                      <h3 className="font-black text-base text-[#1e293b] tracking-wide">在留期限・更新予定表</h3>
-                      <p className="text-xs text-slate-500 leading-relaxed">今後6ヶ月以内のビザ期限と更新手続きが必要な従業員リスト。</p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-t border-slate-100 pt-4 mt-6 gap-3">
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="text-slate-400 font-semibold">警告対象者:</span>
-                      <span className={"px-2.5 py-0.5 rounded-full font-bold text-xs " + (hasVisaWarning ? "bg-red-100 text-red-700 animate-pulse border border-red-200" : "bg-slate-100 text-slate-600 border border-slate-200")}>
-                        {visaCount} 名
-                      </span>
-                    </div>
-                    <Button 
-                      onClick={downloadVisaExpirySchedule}
-                      disabled={isExporting !== null}
-                      className="bg-gradient-to-r from-[#1A3A7B] to-[#2B59C3] text-white hover:from-[#1A3A7B]/90 hover:to-[#2B59C3]/90 font-bold flex items-center justify-center gap-2 rounded-lg h-9 px-4 text-xs transition-all shadow-md self-end sm:self-auto border-none active:scale-[0.98]"
-                    >
-                      {isExporting === "visa" ? (
-                        <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Download className="h-3.5 w-3.5" />
-                      )}
-                      PDFでダウンロード
-                    </Button>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Card 3: Missing Documents / Non-submitters List */}
-            {(() => {
-              const missingCount = getMissingDocsCount();
-              const hasMissingWarning = missingCount > 0;
-              return (
-                <div className={"bg-white border-l-4 rounded-xl p-6 flex flex-col justify-between h-full shadow-md hover:shadow-lg transition-all duration-300 " + (hasMissingWarning ? "border-l-amber-500 bg-amber-50/5" : "border-l-[#1A3A7B]")}>
-                  <div className="flex items-start gap-4">
-                    <div className={"p-3 rounded-full shrink-0 " + (hasMissingWarning ? "bg-amber-50 text-amber-600" : "bg-blue-50 text-[#1A3A7B]")}>
-                      <FileWarning className="h-6 w-6" />
-                    </div>
-                    <div className="space-y-1">
-                      <h3 className="font-black text-base text-[#1e293b] tracking-wide">書類不足・未提出者リスト</h3>
-                      <p className="text-xs text-slate-500 leading-relaxed">雇用契約書や在留カード等の法定書類が未提出・未登録の従業員。</p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-t border-slate-100 pt-4 mt-6 gap-3">
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="text-slate-400 font-semibold">不足件数:</span>
-                      <span className={"px-2.5 py-0.5 rounded-full font-bold text-xs " + (hasMissingWarning ? "bg-amber-50 text-amber-700 border border-amber-200 animate-pulse" : "bg-slate-100 text-slate-600 border border-slate-200")}>
-                        {missingCount} 名
-                      </span>
-                    </div>
-                    <Button 
-                      onClick={downloadMissingDocumentsList}
-                      disabled={isExporting !== null}
-                      className="bg-gradient-to-r from-[#1A3A7B] to-[#2B59C3] text-white hover:from-[#1A3A7B]/90 hover:to-[#2B59C3]/90 font-bold flex items-center justify-center gap-2 rounded-lg h-9 px-4 text-xs transition-all shadow-md self-end sm:self-auto border-none active:scale-[0.98]"
-                    >
-                      {isExporting === "missing" ? (
-                        <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Download className="h-3.5 w-3.5" />
-                      )}
-                      PDFでダウンロード
-                    </Button>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Card 4: Individual Risk Report by Employee */}
-            <div className="bg-white border-l-4 border-l-[#1A3A7B] rounded-xl p-6 flex flex-col justify-between h-full shadow-md hover:shadow-lg transition-all duration-300">
-              <div className="flex items-start gap-4">
-                <div className="p-3 rounded-full bg-blue-50 text-[#1A3A7B] shrink-0">
-                  <Scale className="h-6 w-6" />
-                </div>
-                <div className="space-y-1">
-                  <h3 className="font-black text-base text-[#1e293b] tracking-wide">従業員別個別リスクレポート</h3>
-                  <p className="text-xs text-slate-500 leading-relaxed">特定従業員のコンプライアンス評価、サポート履歴、リスクスコアの詳細。</p>
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-t border-slate-100 pt-4 mt-6 gap-3">
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="text-slate-400 font-semibold">全管理対象者:</span>
-                  <span className="font-mono font-bold text-slate-800 text-sm">{employees.length} 名</span>
-                </div>
-                <Button 
-                  onClick={downloadIndividualRiskReport}
-                  disabled={isExporting !== null}
-                  className="bg-gradient-to-r from-[#1A3A7B] to-[#2B59C3] text-white hover:from-[#1A3A7B]/90 hover:to-[#2B59C3]/90 font-bold flex items-center justify-center gap-2 rounded-lg h-9 px-4 text-xs transition-all shadow-md self-end sm:self-auto border-none active:scale-[0.98]"
-                >
-                  {isExporting === "individual" ? (
-                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Download className="h-3.5 w-3.5" />
-                  )}
-                  PDFでダウンロード
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Bottom Details Grid */}
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-          {/* Renewals Expirations List */}
-          <Card className="lg:col-span-2 border-t-0 border-r-0 border-b-0 border-l-4 border-l-[#1A3A7B] bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow">
-            <CardHeader className="p-6 pb-4">
-              <div className="flex items-center gap-2">
-                <div className="h-5 w-1.5 bg-[#1A3A7B] rounded-full shrink-0" />
-                <CardTitle className="text-lg font-black text-[#1e293b] tracking-wide">
-                  近日中の在留資格・契約満了予定
-                </CardTitle>
-              </div>
-              <CardDescription className="text-xs mt-1">在留期限が3ヶ月以内の外国人従業員を表示します。</CardDescription>
+        {/* --- High Priority Expired Items Banner --- */}
+        {hasExpiredItems && (
+          <Card className="border-l-4 border-l-red-600 bg-red-50/50 dark:bg-red-950/20 rounded-xl shadow-md overflow-hidden animate-pulse">
+            <CardHeader className="p-6 pb-3">
+              <CardTitle className="text-red-700 dark:text-red-400 font-black flex items-center gap-2 text-lg">
+                <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400 shrink-0" />
+                【最優先警告】期限切れの対象者が存在します
+              </CardTitle>
+              <CardDescription className="text-xs text-red-650 dark:text-red-300 font-semibold mt-1">
+                直ちに対処（更新申請または退職手続き）が必要な従業員が検出されました。
+              </CardDescription>
             </CardHeader>
-            <CardContent className="px-6 pb-6 space-y-4">
-              {m.upcomingRenewals.length === 0 ? (
-                <div className="py-12 text-center text-sm text-slate-400 flex flex-col items-center justify-center gap-2">
-                  <Check className="h-8 w-8 text-emerald-600" />
-                  現在、3ヶ月以内に満了を迎える従業員はいません。
-                </div>
-              ) : (
-                m.upcomingRenewals.map((emp) => (
-                  <div key={emp.id} className="flex items-center gap-4 p-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors">
-                    <Avatar className="h-10 w-10 border border-muted">
-                      <AvatarFallback className="font-bold text-xs bg-indigo-50 text-indigo-600">{emp.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+            <CardContent className="px-6 pb-6 space-y-3">
+              {expiredVisaEmployees.map(emp => (
+                <div key={emp.id} className="flex flex-col sm:flex-row sm:items-center justify-between bg-white dark:bg-zinc-900 p-4 rounded-xl border border-red-200 dark:border-red-900 gap-3">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-8 w-8 border shrink-0">
+                      <AvatarFallback className="font-bold text-[10px] bg-red-100 text-red-800">{emp.name.substring(0, 2).toUpperCase()}</AvatarFallback>
                     </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-extrabold text-sm text-slate-900 truncate">{emp.name}</p>
-                      <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500 flex-wrap">
-                        <span>在留資格: <strong className="text-slate-800">{emp.statusOfResidence}</strong></span>
-                        <span>•</span>
-                        <span>在留期限: <strong className="text-red-600 font-mono font-bold">{emp.expirationDate}</strong></span>
-                      </div>
+                    <div>
+                      <span className="font-extrabold text-sm text-slate-800 dark:text-slate-200">{emp.name}</span>
+                      <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-400 border border-red-250">在留資格期限切れ</span>
                     </div>
-                    {user.companyId && (
-                      <Button variant="outline" size="sm" asChild className="text-xs font-semibold h-8 border-slate-200 text-slate-700 hover:bg-slate-50">
-                        <Link href={"/dashboard/companies/" + user.companyId + "?tab=employees"}>確認</Link>
-                      </Button>
-                    )}
                   </div>
-                ))
-              )}
+                  <div className="flex items-center justify-between sm:justify-end gap-4">
+                    <span className="text-xs font-mono font-bold text-red-600">満了日: {emp.expirationDate}</span>
+                    <Button size="sm" variant="destructive" asChild className="h-8 text-xs font-bold shadow-sm">
+                      <Link href={`/dashboard/companies/${user.companyId}?tab=employees&filter=expired`}>確認する</Link>
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              {expiredContractEmployees.map(emp => (
+                <div key={emp.id} className="flex flex-col sm:flex-row sm:items-center justify-between bg-white dark:bg-zinc-900 p-4 rounded-xl border border-red-200 dark:border-red-900 gap-3">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-8 w-8 border shrink-0">
+                      <AvatarFallback className="font-bold text-[10px] bg-red-100 text-red-800">{emp.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <span className="font-extrabold text-sm text-slate-800 dark:text-slate-200">{emp.name}</span>
+                      <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-400 border border-red-250">雇用契約期限切れ</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between sm:justify-end gap-4">
+                    <span className="text-xs font-mono font-bold text-red-600">満了日: {emp.contractPeriod}</span>
+                    <Button size="sm" variant="destructive" asChild className="h-8 text-xs font-bold shadow-sm">
+                      <Link href={`/dashboard/companies/${user.companyId}?tab=employees&filter=expired`}>確認する</Link>
+                    </Button>
+                  </div>
+                </div>
+              ))}
             </CardContent>
           </Card>
+        )}
 
-          {/* Right Pane: Alerts & Upgrade History */}
-          <div className="space-y-8">
-            {/* Alerts Card */}
-            <Card className={"border-t-0 border-r-0 border-b-0 border-l-4 bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow " + (m.alerts.length > 0 ? "border-l-red-500 bg-red-50/5" : "border-l-[#1A3A7B]")}>
-              <CardHeader className="p-6 pb-4">
-                <div className="flex items-center gap-2">
-                  <div className="h-5 w-1.5 bg-[#1A3A7B] rounded-full shrink-0" />
-                  <CardTitle className="text-lg font-black text-[#1e293b] tracking-wide">
-                    アラート一覧
-                  </CardTitle>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* Left Side: Alerts */}
+          <div className="space-y-6">
+            {/* ① 在留カード更新アラート */}
+            <Card className="hover:shadow-lg transition-all border border-slate-100 dark:border-zinc-800 overflow-hidden bg-white dark:bg-zinc-900">
+              <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50/30 dark:from-zinc-900 dark:to-zinc-900/50 p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg text-blue-700 dark:text-blue-200">
+                      <ShieldAlert className="h-5 w-5" />
+                    </div>
+                    <CardTitle className="text-lg font-black text-slate-800 dark:text-slate-100">① 在留カード更新アラート</CardTitle>
+                  </div>
+                  <span className="text-xs text-slate-400 font-medium">3ヶ月以内</span>
                 </div>
-                <CardDescription className="text-xs mt-1">対応待ちの期限通知を表示します。</CardDescription>
               </CardHeader>
-              <CardContent className="px-6 pb-6">
-                {m.alerts.length === 0 ? (
-                  <div className="py-12 text-center text-sm text-slate-400 flex flex-col items-center justify-center gap-2">
-                    <Check className="h-8 w-8 text-emerald-600" />
-                    現在アクティブなアラートはありません。
+              <CardContent className="p-6 flex flex-col items-center justify-center min-h-[140px]">
+                {expiringVisaEmployees.length > 0 ? (
+                  <div className="text-center space-y-4 w-full">
+                    <div className="text-3xl font-black text-amber-600 dark:text-amber-400">
+                      更新対象 {expiringVisaEmployees.length}名
+                    </div>
+                    <p className="text-xs text-slate-500">在留期限が残り3ヶ月以内の従業員がいます。</p>
+                    <Button asChild className="w-full bg-[#1A3A7B] text-white hover:bg-[#1A3A7B]/90 font-bold">
+                      <Link href={`/dashboard/companies/${user.companyId}?tab=employees&filter=visa`}>
+                        対象者一覧へ
+                      </Link>
+                    </Button>
                   </div>
                 ) : (
-                  <ul className="space-y-3">
-                    {m.alerts.map((alert) => (
-                      <li key={alert.id} className="flex flex-col gap-2 p-3 bg-red-500/5 rounded-lg border border-red-500/10 text-xs">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className={"font-bold " + (alert.severity === "critical" ? "text-red-700 dark:text-red-400" : "text-amber-700 dark:text-amber-400")}>
-                            {alert.severity === "critical" ? "🚨 重大警告" : "⚠️ 注意喚起"}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground">{alert.dueDate}</span>
-                        </div>
-                        <p className="text-slate-600 font-semibold leading-relaxed">{alert.message}</p>
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="text-center space-y-2">
+                    <div className="text-2xl font-bold text-slate-400 dark:text-slate-500">対象者なし</div>
+                    <p className="text-xs text-slate-400">現在、3ヶ月以内に更新が必要な対象者はいません。</p>
+                  </div>
                 )}
               </CardContent>
             </Card>
 
-            {/* Additional Option Application Panel */}
-            <Card className="border-t-0 border-r-0 border-b-0 border-l-4 border-l-[#1A3A7B] bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow">
-              <CardHeader className="p-6 pb-4">
-                <div className="flex items-center gap-2">
-                  <div className="h-5 w-1.5 bg-[#1A3A7B] rounded-full shrink-0" />
-                  <CardTitle className="text-lg font-black text-[#1e293b] tracking-wide">
-                    追加オプション申請
-                  </CardTitle>
-                </div>
-                <CardDescription className="text-xs mt-1">
-                  プラン外のサービスを単発追加依頼できます。
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="px-6 pb-6 space-y-2">
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  {OPTIONS_LIST.map((opt) => {
-                    const isIncluded = company?.active_options?.includes(opt.key);
-                    return (
-                      <Button
-                        key={opt.key}
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          setSelectedOption(opt);
-                          setIsOptionModalOpen(true);
-                        }}
-                        disabled={isIncluded}
-                        className={"text-[11px] h-10 px-2 flex flex-col justify-center items-center font-bold border border-slate-200 " + (isIncluded ? "bg-slate-50 text-slate-400 border-dashed" : "bg-white text-[#1A3A7B] hover:bg-indigo-50")}
-                      >
-                        <span className="truncate w-full text-center">{opt.name}</span>
-                        <span className="text-[9px] text-slate-400 font-medium">({opt.price}円)</span>
-                      </Button>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Request History Log Card */}
-            <Card className="border-t-0 border-r-0 border-b-0 border-l-4 border-l-[#1A3A7B] bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow">
-              <CardHeader className="p-6 pb-4">
-                <div className="flex items-center gap-2">
-                  <div className="h-5 w-1.5 bg-[#1A3A7B] rounded-full shrink-0" />
-                  <CardTitle className="text-lg font-black text-[#1e293b] tracking-wide">
-                    申請・依頼履歴
-                  </CardTitle>
-                </div>
-                <CardDescription className="text-xs mt-1">追加オプションや翻訳通訳の申請一覧です。</CardDescription>
-              </CardHeader>
-              <CardContent className="px-6 pb-6 space-y-2 text-xs max-h-[300px] overflow-y-auto">
-                {requestsList.length === 0 ? (
-                  <div className="text-center text-slate-400 py-6 font-semibold">履歴はありません</div>
-                ) : (
-                  requestsList.map((req) => (
-                    <div key={req.id} className="p-3 border rounded-xl bg-slate-50/50 space-y-1">
-                      <div className="flex justify-between items-center text-[10px] text-slate-400 flex-wrap">
-                        <span className="font-bold uppercase text-[#1A3A7B]">{req.type}</span>
-                        <span>{req.createdAt.split("T")[0]}</span>
-                      </div>
-                      <p className="font-bold text-slate-700">
-                        {req.type === "option" ? ("オプション追加: " + (OPTIONS_LIST.find(o => o.key === req.item)?.name || req.item)) : (req.details || req.type)}
-                      </p>
-                      {req.totalPrice && (
-                        <p className="text-[10px] text-indigo-700 font-extrabold">合計金額: {req.totalPrice.toLocaleString()}円</p>
-                      )}
-                      <span className="inline-flex px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-bold text-[9px] border">申請完了</span>
+            {/* ② 契約更新アラート */}
+            <Card className="hover:shadow-lg transition-all border border-slate-100 dark:border-zinc-800 overflow-hidden bg-white dark:bg-zinc-900">
+              <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50/30 dark:from-zinc-900 dark:to-zinc-900/50 p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 bg-indigo-100 dark:bg-indigo-900 rounded-lg text-indigo-700 dark:text-indigo-200">
+                      <FileWarning className="h-5 w-5" />
                     </div>
-                  ))
+                    <CardTitle className="text-lg font-black text-slate-800 dark:text-slate-100">② 契約更新アラート</CardTitle>
+                  </div>
+                  <span className="text-xs text-slate-400 font-medium">3ヶ月以内</span>
+                </div>
+              </CardHeader>
+              <CardContent className="p-6 flex flex-col items-center justify-center min-h-[140px]">
+                {expiringContractEmployees.length > 0 ? (
+                  <div className="text-center space-y-4 w-full">
+                    <div className="text-3xl font-black text-[#1A3A7B] dark:text-[#5C85D3]">
+                      契約更新対象 {expiringContractEmployees.length}名
+                    </div>
+                    <p className="text-xs text-slate-500">契約終了日が残り3ヶ月以内の従業員がいます。</p>
+                    <Button asChild className="w-full bg-[#1A3A7B] text-white hover:bg-[#1A3A7B]/90 font-bold">
+                      <Link href={`/dashboard/companies/${user.companyId}?tab=employees&filter=contract`}>
+                        対象者一覧へ
+                      </Link>
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="text-center space-y-2">
+                    <div className="text-2xl font-bold text-slate-400 dark:text-slate-500">対象者なし</div>
+                    <p className="text-xs text-slate-400">現在、3ヶ月以内に契約更新が必要な対象者はいません。</p>
+                  </div>
                 )}
               </CardContent>
             </Card>
           </div>
+
+          {/* Right Side: Specialist Contact Center */}
+          <Card className="border border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-md">
+            <CardHeader className="border-b border-slate-100 dark:border-zinc-800 p-6">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-emerald-100 dark:bg-emerald-900 rounded-lg text-emerald-700 dark:text-emerald-250">
+                  <Scale className="h-5 w-5" />
+                </div>
+                <CardTitle className="text-lg font-black text-slate-800 dark:text-slate-100">③ 専門家連絡センター</CardTitle>
+              </div>
+              <CardDescription className="text-xs">
+                各種専門家へワンクリックで連絡を取ることができます。
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+              <div className="grid grid-cols-1 gap-3">
+                <Button asChild variant="outline" className="justify-start gap-3 h-12 text-sm font-bold border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800">
+                  <a href="mailto:gyosei@maworkjp.com?subject=行政書士への相談依頼&body=MA WORK JP ポータルより自動生成%0D%0A%0D%0Aご相談内容をご記入ください：">
+                    <span className="text-lg">✉️</span> 行政書士へメール
+                  </a>
+                </Button>
+                
+                <Button asChild variant="outline" className="justify-start gap-3 h-12 text-sm font-bold border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800">
+                  <a href="mailto:sharoushi@maworkjp.com?subject=社労士への相談依頼&body=MA WORK JP ポータルより自動生成%0D%0A%0D%0Aご相談内容をご記入ください：">
+                    <span className="text-lg">✉️</span> 社労士へメール
+                  </a>
+                </Button>
+
+                <Button asChild variant="outline" className="justify-start gap-3 h-12 text-sm font-bold border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800">
+                  <a href="mailto:lawyer@maworkjp.com?subject=弁護士への相談依頼&body=MA WORK JP ポータルより自動生成%0D%0A%0D%0Aご相談内容をご記入ください：">
+                    <span className="text-lg">✉️</span> 弁護士へメール
+                  </a>
+                </Button>
+
+                <Button asChild variant="outline" className="justify-start gap-3 h-12 text-sm font-bold border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800">
+                  <a href="mailto:translate@maworkjp.com?subject=翻訳通訳への相談依頼&body=MA WORK JP ポータルより自動生成%0D%0A%0D%0Aご相談内容をご記入ください：">
+                    <span className="text-lg">✉️</span> 翻訳通訳へのメール
+                  </a>
+                </Button>
+
+                <Button asChild className="justify-start gap-3 h-12 text-sm font-bold bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm border-none">
+                  <a href="tel:03-1234-5678">
+                    <span className="text-lg">📞</span> 緊急連絡先へ電話
+                  </a>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
-
-        {/* Bottom Section: Locked Advanced Analytics & Upgrade Gates */}
-        <div className="space-y-4 pt-4">
-          <div className="flex items-center gap-2 pb-2">
-            <div className="h-6 w-1.5 bg-[#1A3A7B] rounded-full shrink-0" />
-            <h2 className="text-xl font-black text-[#1e293b] tracking-wider">
-              高度分析・プラン専用機能（コンプライアンス・労務）
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            
-            {/* Card 1: Overtime Unpaid Risk Analysis */}
-            <div 
-              onClick={() => {
-                if (isProAnalysisLocked) {
-                  setSelectedUpgradePlan("pro");
-                  setIsUpgradeModalOpen(true);
-                } else {
-                  setActiveAnalysisDetail("overtime");
-                }
-              }}
-              className={"p-6 rounded-2xl bg-white shadow-md border-l-4 border-l-[#1A3A7B] cursor-pointer hover:shadow-lg transition-all duration-300 relative overflow-hidden " + (isProAnalysisLocked ? "opacity-65" : "")}
-            >
-              {isProAnalysisLocked && (
-                <div className="absolute top-2 right-2 bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/20 px-2 py-0.5 rounded text-[9px] font-black flex items-center gap-1">
-                  <Lock className="h-3 w-3" /> プロ以上専用
-                </div>
-              )}
-              <div className="p-3 rounded-full bg-blue-50 text-[#1A3A7B] w-fit mb-4">
-                <Scale className="h-6 w-6" />
-              </div>
-              <h4 className="font-black text-sm text-[#1e293b]">未払い残業リスク分析</h4>
-              <p className="text-[11px] text-slate-500 mt-2 leading-relaxed">
-                労働条件通知と勤務ログをAI照合し、労働基準監督署監査におけるリスク領域を診断します。
-              </p>
-            </div>
-
-            {/* Card 2: Foreigner Employment Risk Analysis */}
-            <div 
-              onClick={() => {
-                if (isProAnalysisLocked) {
-                  setSelectedUpgradePlan("pro");
-                  setIsUpgradeModalOpen(true);
-                } else {
-                  setActiveAnalysisDetail("risk");
-                }
-              }}
-              className={"p-6 rounded-2xl bg-white shadow-md border-l-4 border-l-[#1A3A7B] cursor-pointer hover:shadow-lg transition-all duration-300 relative overflow-hidden " + (isProAnalysisLocked ? "opacity-65" : "")}
-            >
-              {isProAnalysisLocked && (
-                <div className="absolute top-2 right-2 bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/20 px-2 py-0.5 rounded text-[9px] font-black flex items-center gap-1">
-                  <Lock className="h-3 w-3" /> プロ以上専用
-                </div>
-              )}
-              <div className="p-3 rounded-full bg-blue-50 text-[#1A3A7B] w-fit mb-4">
-                <ShieldAlert className="h-6 w-6" />
-              </div>
-              <h4 className="font-black text-sm text-[#1e293b]">外国人雇用リスク分析</h4>
-              <p className="text-[11px] text-slate-500 mt-2 leading-relaxed">
-                在留資格（特定技能等）の受け入れプロセスに法令違反のリスク（入管法・労基法）がないか自動分析します。
-              </p>
-            </div>
-
-            {/* Card 3: Retention and engagement */}
-            <div 
-              onClick={() => {
-                if (isProAnalysisLocked) {
-                  setSelectedUpgradePlan("pro");
-                  setIsUpgradeModalOpen(true);
-                } else {
-                  setActiveAnalysisDetail("retention");
-                }
-              }}
-              className={"p-6 rounded-2xl bg-white shadow-md border-l-4 border-l-[#1A3A7B] cursor-pointer hover:shadow-lg transition-all duration-300 relative overflow-hidden " + (isProAnalysisLocked ? "opacity-65" : "")}
-            >
-              {isProAnalysisLocked && (
-                <div className="absolute top-2 right-2 bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/20 px-2 py-0.5 rounded text-[9px] font-black flex items-center gap-1">
-                  <Lock className="h-3 w-3" /> プロ以上専用
-                </div>
-              )}
-              <div className="p-3 rounded-full bg-blue-50 text-[#1A3A7B] w-fit mb-4">
-                <TrendingUp className="h-6 w-6" />
-              </div>
-              <h4 className="font-black text-sm text-[#1e293b]">定着率分析・離職リスク予測</h4>
-              <p className="text-[11px] text-slate-500 mt-2 leading-relaxed">
-                外国人スタッフの不満ヒアリング履歴、サポート頻度から離職・不満リスクをAI予測します。
-              </p>
-            </div>
-
-            {/* Card 4: KPI Analysis */}
-            <div 
-              onClick={() => {
-                if (isProAnalysisLocked) {
-                  setSelectedUpgradePlan("pro");
-                  setIsUpgradeModalOpen(true);
-                } else {
-                  setActiveAnalysisDetail("kpi");
-                }
-              }}
-              className={"p-6 rounded-2xl bg-white shadow-md border-l-4 border-l-[#1A3A7B] cursor-pointer hover:shadow-lg transition-all duration-300 relative overflow-hidden " + (isProAnalysisLocked ? "opacity-65" : "")}
-            >
-              {isProAnalysisLocked && (
-                <div className="absolute top-2 right-2 bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/20 px-2 py-0.5 rounded text-[9px] font-black flex items-center gap-1">
-                  <Lock className="h-3 w-3" /> プロ以上専用
-                </div>
-              )}
-              <div className="p-3 rounded-full bg-blue-50 text-[#1A3A7B] w-fit mb-4">
-                <Award className="h-6 w-6" />
-              </div>
-              <h4 className="font-black text-sm text-[#1e293b]">雇用管理KPIパフォーマンス分析</h4>
-              <p className="text-[11px] text-slate-500 mt-2 leading-relaxed">
-                在留管理・教育・労務環境整備の各KPI指標を設定し、会社の受け入れ体制の成熟度をスコアリングします。
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-4">
-            {/* Premium locked service cards */}
-            <div 
-              onClick={() => {
-                if (isPremiumLocked) {
-                  setSelectedUpgradePlan("premium");
-                  setIsUpgradeModalOpen(true);
-                } else {
-                  setActiveAnalysisDetail("premium_survey");
-                }
-              }}
-              className={"p-6 rounded-2xl bg-white shadow-md border-l-4 border-l-amber-400 cursor-pointer hover:shadow-lg transition-all duration-300 relative overflow-hidden " + (isPremiumLocked ? "opacity-65" : "")}
-            >
-              {isPremiumLocked && (
-                <div className="absolute top-2 right-2 bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/20 px-2 py-0.5 rounded text-[9px] font-black flex items-center gap-1">
-                  <Lock className="h-3 w-3" /> プレミアム専用
-                </div>
-              )}
-              <div className="p-3 rounded-full bg-amber-55 text-amber-600 w-fit mb-4">
-                <Star className="h-6 w-6" />
-              </div>
-              <h4 className="font-black text-sm text-[#1e293b]">外国人満足度アンケート</h4>
-              <p className="text-[11px] text-slate-500 mt-2 leading-relaxed">
-                定期的な多言語による従業員満足度調査を行い、モチベーション低下や職場トラブルを早期発見。
-              </p>
-            </div>
-
-            <div 
-              onClick={() => {
-                if (isPremiumLocked) {
-                  setSelectedUpgradePlan("premium");
-                  setIsUpgradeModalOpen(true);
-                } else {
-                  setActiveAnalysisDetail("premium_roadmap");
-                }
-              }}
-              className={"p-6 rounded-2xl bg-white shadow-md border-l-4 border-l-amber-400 cursor-pointer hover:shadow-lg transition-all duration-300 relative overflow-hidden " + (isPremiumLocked ? "opacity-65" : "")}
-            >
-              {isPremiumLocked && (
-                <div className="absolute top-2 right-2 bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/20 px-2 py-0.5 rounded text-[9px] font-black flex items-center gap-1">
-                  <Lock className="h-3 w-3" /> プレミアム専用
-                </div>
-              )}
-              <div className="p-3 rounded-full bg-amber-55 text-amber-600 w-fit mb-4">
-                <FileText className="h-6 w-6" />
-              </div>
-              <h4 className="font-black text-sm text-[#1e293b]">年間雇用戦略ロードマップ</h4>
-              <p className="text-[11px] text-slate-500 mt-2 leading-relaxed">
-                企業の採用・育成計画に合わせた外国人雇用戦略ロードマップおよび労務設計の年間計画策定。
-              </p>
-            </div>
-
-            <div 
-              onClick={() => {
-                if (isPremiumLocked) {
-                  setSelectedUpgradePlan("premium");
-                  setIsUpgradeModalOpen(true);
-                } else {
-                  toast({ title: "重大トラブル初動支援", description: "専属緊急対応ホットラインへ直接ご連絡ください（24時間受付）。" });
-                }
-              }}
-              className={"p-6 rounded-2xl bg-white shadow-md border-l-4 border-l-amber-400 cursor-pointer hover:shadow-lg transition-all duration-300 relative overflow-hidden " + (isPremiumLocked ? "opacity-65" : "")}
-            >
-              {isPremiumLocked && (
-                <div className="absolute top-2 right-2 bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/20 px-2 py-0.5 rounded text-[9px] font-black flex items-center gap-1">
-                  <Lock className="h-3 w-3" /> プレミアム専用
-                </div>
-              )}
-              <div className="p-3 rounded-full bg-amber-55 text-amber-600 w-fit mb-4">
-                <AlertTriangle className="h-6 w-6" />
-              </div>
-              <h4 className="font-black text-sm text-[#1e293b]">重大トラブル初動支援</h4>
-              <p className="text-[11px] text-slate-500 mt-2 leading-relaxed">
-                失踪、警察沙汰、事故など、万が一の緊急・重大トラブル発生時に専門家が初動対応を徹底支援。
-              </p>
-            </div>
-
-            <div 
-              onClick={() => {
-                if (isPremiumLocked) {
-                  setSelectedUpgradePlan("premium");
-                  setIsUpgradeModalOpen(true);
-                } else {
-                  toast({ title: "専属担当者", description: "御社専属の行政書士・労務コンサルタントが直接チャット等でサポートします。" });
-                }
-              }}
-              className={"p-6 rounded-2xl bg-white shadow-md border-l-4 border-l-amber-400 cursor-pointer hover:shadow-lg transition-all duration-300 relative overflow-hidden " + (isPremiumLocked ? "opacity-65" : "")}
-            >
-              {isPremiumLocked && (
-                <div className="absolute top-2 right-2 bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/20 px-2 py-0.5 rounded text-[9px] font-black flex items-center gap-1">
-                  <Lock className="h-3 w-3" /> プレミアム専用
-                </div>
-              )}
-              <div className="p-3 rounded-full bg-amber-55 text-amber-600 w-fit mb-4">
-                <Users className="h-6 w-6" />
-              </div>
-              <h4 className="font-black text-sm text-[#1e293b]">専属担当者窓口</h4>
-              <p className="text-[11px] text-slate-500 mt-2 leading-relaxed">
-                御社専用の外国人雇用問題専門アドバイザーを割り当て、日常の細かい労務相談に常時チャット回答。
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* MODAL DIALOGS */}
-
-        {/* 1. Additional Option Application Modal */}
-        <Dialog open={isOptionModalOpen} onOpenChange={setIsOptionModalOpen}>
-          <DialogContent className="max-w-md bg-background border rounded-lg shadow-lg">
-            <DialogHeader>
-              <DialogTitle className="text-lg font-bold text-primary">
-                追加オプションサービス申請
-              </DialogTitle>
-              <DialogDescription className="text-xs">
-                以下のオプションサービスを追加でご依頼いただけます。
-              </DialogDescription>
-            </DialogHeader>
-
-            {selectedOption && (
-              <form onSubmit={handleOptionSubmit} className="space-y-4 py-2 text-xs">
-                <div className="p-4 bg-muted/30 border rounded-xl space-y-2">
-                  <h4 className="font-black text-sm text-primary">{selectedOption.name}</h4>
-                  <p className="text-slate-500 leading-relaxed">{selectedOption.desc}</p>
-                  <div className="pt-2 border-t flex justify-between font-bold">
-                    <span>追加費用:</span>
-                    <span className="text-indigo-700 font-extrabold text-sm">{selectedOption.price}円</span>
-                  </div>
-                </div>
-
-                <div className="space-y-3 pt-2">
-                  <label className="flex items-start gap-2.5 cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      checked={isOptionFeeChecked}
-                      onChange={(e) => setIsOptionFeeChecked(e.target.checked)}
-                      className="mt-0.5 accent-[#1A3A7B]"
-                      required
-                    />
-                    <span className="font-bold text-slate-600">料金を確認しました</span>
-                  </label>
-                  <label className="flex items-start gap-2.5 cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      checked={isOptionConsentChecked}
-                      onChange={(e) => setIsOptionConsentChecked(e.target.checked)}
-                      className="mt-0.5 accent-[#1A3A7B]"
-                      required
-                    />
-                    <span className="font-bold text-slate-600">上記の内容で管理者に依頼します</span>
-                  </label>
-                </div>
-
-                <DialogFooter className="pt-4 border-t flex justify-end gap-2">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={() => {
-                      setIsOptionModalOpen(false);
-                      setIsOptionFeeChecked(false);
-                      setIsOptionConsentChecked(false);
-                    }}
-                  >
-                    キャンセル
-                  </Button>
-                  <Button 
-                    type="submit" 
-                    disabled={!isOptionFeeChecked || !isOptionConsentChecked || isSubmittingRequest}
-                    className="bg-[#1A3A7B] text-white hover:bg-[#1A3A7B]/95 font-bold"
-                  >
-                    {isSubmittingRequest ? <RefreshCw className="h-4 w-4 animate-spin" /> : "依頼する"}
-                  </Button>
-                </DialogFooter>
-              </form>
-            )}
-          </DialogContent>
-        </Dialog>
-
-        {/* 2. New Translation Request Modal */}
-        <Dialog open={isTranslationModalOpen} onOpenChange={setIsTranslationModalOpen}>
-          <DialogContent className="max-w-lg bg-background border rounded-lg shadow-lg">
-            <DialogHeader>
-              <DialogTitle className="text-lg font-bold text-primary flex items-center gap-1.5">
-                <FileText className="h-5 w-5 text-indigo-500" />
-                翻訳（文書）の新規依頼申請
-              </DialogTitle>
-              <DialogDescription className="text-xs">
-                翻訳文書の対象原稿、言語、希望納期（実施予定日）を入力してください。
-              </DialogDescription>
-            </DialogHeader>
-
-            <form onSubmit={handleTranslationSubmit} className="space-y-4 py-2 text-xs">
-              <div className="space-y-1.5">
-                <Label htmlFor="translationText" className="font-bold text-slate-500">翻訳する文章・原稿説明</Label>
-                <Textarea 
-                  id="translationText"
-                  placeholder="雇用契約書の別紙、または社内周知用文書などの要約を入力"
-                  value={translationText}
-                  onChange={(e) => setTranslationText(e.target.value)}
-                  className="min-h-[80px]"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="translationLang" className="font-bold text-slate-500">翻訳先言語</Label>
-                  <Select value={translationLang} onValueChange={setTranslationLang}>
-                    <SelectTrigger id="translationLang">
-                      <SelectValue placeholder="言語を選択" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ベトナム語">ベトナム語</SelectItem>
-                      <SelectItem value="インドネシア語">インドネシア語</SelectItem>
-                      <SelectItem value="ミャンマー語">ミャンマー語</SelectItem>
-                      <SelectItem value="英語">英語</SelectItem>
-                      <SelectItem value="ネパール語">ネパール語</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="translationPages" className="font-bold text-slate-500">ページ数 (A4: 1〜1,500字/枚)</Label>
-                  <Input 
-                    id="translationPages"
-                    type="number"
-                    min={1}
-                    value={translationPages}
-                    onChange={(e) => setTranslationPages(Math.max(1, parseInt(e.target.value) || 1))}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="translationDate" className="font-bold text-slate-500">納品希望予定日 <span className="text-destructive">*</span></Label>
-                <Input 
-                  id="translationDate"
-                  type="date"
-                  value={translationDate}
-                  onChange={(e) => setTranslationDate(e.target.value)}
-                  required
-                />
-                <p className="text-[10px] text-slate-400 leading-relaxed">
-                  ※翻訳は1週間前（7日前）までにご依頼ください。期限未満の場合は緊急対応料金（3日以内: +30%, 翌日: +50%, 当日: +100%）が発生します（プレミアムプランの無料枠分にも適用されます）。
-                </p>
-              </div>
-
-              {/* Dynamic Fee Simulators Display */}
-              {(() => {
-                const fees = calculateTranslationFees();
-                const isEmergency = fees.surcharge > 0;
-                return (
-                  <div className="p-4 bg-muted/40 border rounded-xl space-y-2 font-bold text-xs">
-                    <div className="flex justify-between">
-                      <span>基本料金 (8,000円/枚):</span>
-                      <span className={company?.plan_type === "premium" && fees.base === 0 ? "line-through text-slate-400" : ""}>
-                        {(translationPages * 8000).toLocaleString()}円
-                      </span>
-                    </div>
-                    {company?.plan_type === "premium" && (
-                      <div className="flex justify-between text-emerald-700">
-                        <span>プレミアム特典（基本料免除）:</span>
-                        <span>-{(translationPages * 8000).toLocaleString()}円</span>
-                      </div>
-                    )}
-                    {isEmergency && (
-                      <div className="flex justify-between text-red-600">
-                        <span>緊急対応料金 ({Math.round(fees.rate * 100)}%加算):</span>
-                        <span>+{fees.surcharge.toLocaleString()}円</span>
-                      </div>
-                    )}
-                    <hr />
-                    <div className="flex justify-between font-black text-sm text-primary">
-                      <span>お支払見積り合計 (税別):</span>
-                      <span className="text-[#1A3A7B] text-base">{fees.total.toLocaleString()}円</span>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              <DialogFooter className="pt-4 border-t flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setIsTranslationModalOpen(false)}>
-                  キャンセル
-                </Button>
-                <Button type="submit" disabled={isSubmittingRequest} className="bg-[#1A3A7B] text-white hover:bg-[#1A3A7B]/95 font-bold">
-                  {isSubmittingRequest ? <RefreshCw className="h-4 w-4 animate-spin" /> : "翻訳を依頼する"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-
-        {/* 3. New Interpretation Booking Modal */}
-        <Dialog open={isInterpretationModalOpen} onOpenChange={setIsInterpretationModalOpen}>
-          <DialogContent className="max-w-lg bg-background border rounded-lg shadow-lg">
-            <DialogHeader>
-              <DialogTitle className="text-lg font-bold text-primary flex items-center gap-1.5">
-                <Users className="h-5 w-5 text-indigo-500" />
-                通訳対応の予約申請
-              </DialogTitle>
-              <DialogDescription className="text-xs">
-                通訳希望の予定日、時間、対応内容（面談、安全指導等）を入力してください。
-              </DialogDescription>
-            </DialogHeader>
-
-            <form onSubmit={handleInterpretationSubmit} className="space-y-4 py-2 text-xs">
-              <div className="space-y-1.5">
-                <Label htmlFor="interpretationDesc" className="font-bold text-slate-500">通訳内容の説明・目的</Label>
-                <Textarea 
-                  id="interpretationDesc"
-                  placeholder="外国人スタッフ向けの現場安全教育時通訳、個別雇用条件説明面談など"
-                  value={interpretationDesc}
-                  onChange={(e) => setInterpretationDesc(e.target.value)}
-                  className="min-h-[80px]"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="interpretationHours" className="font-bold text-slate-500">予定時間（時間）</Label>
-                  <Input 
-                    id="interpretationHours"
-                    type="number"
-                    min={1}
-                    value={interpretationHours}
-                    onChange={(e) => setInterpretationHours(Math.max(1, parseInt(e.target.value) || 1))}
-                    required
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="interpretationDate" className="font-bold text-slate-500">通訳実施予定日 <span className="text-destructive">*</span></Label>
-                  <Input 
-                    id="interpretationDate"
-                    type="date"
-                    value={interpretationDate}
-                    onChange={(e) => setInterpretationDate(e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Dynamic Fee Simulators Display */}
-              {(() => {
-                const fees = calculateInterpretationFees();
-                const isEmergency = fees.surcharge > 0;
-                return (
-                  <div className="p-4 bg-muted/40 border rounded-xl space-y-2 font-bold text-xs">
-                    <div className="flex justify-between">
-                      <span>基本通訳料金 (10,000円/時):</span>
-                      <span>{(interpretationHours * 10000).toLocaleString()}円</span>
-                    </div>
-                    {isEmergency && (
-                      <div className="flex justify-between text-red-600">
-                        <span>緊急対応料金 ({Math.round(fees.rate * 100)}%加算):</span>
-                        <span>+{fees.surcharge.toLocaleString()}円</span>
-                      </div>
-                    )}
-                    <hr />
-                    <div className="flex justify-between font-black text-sm text-primary">
-                      <span>お支払見積り合計 (税別):</span>
-                      <span className="text-[#1A3A7B] text-base">{fees.total.toLocaleString()}円</span>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              <DialogFooter className="pt-4 border-t flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setIsInterpretationModalOpen(false)}>
-                  キャンセル
-                </Button>
-                <Button type="submit" disabled={isSubmittingRequest} className="bg-[#1A3A7B] text-white hover:bg-[#1A3A7B]/95 font-bold">
-                  {isSubmittingRequest ? <RefreshCw className="h-4 w-4 animate-spin" /> : "通訳を予約する"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-
-        {/* 4. Plan Upgrade Application Modal */}
-        <Dialog open={isUpgradeModalOpen} onOpenChange={setIsUpgradeModalOpen}>
-          <DialogContent className="max-w-md bg-background border rounded-lg shadow-lg">
-            <DialogHeader>
-              <DialogTitle className="text-lg font-bold text-primary flex items-center gap-1.5">
-                <Award className="h-5 w-5 text-indigo-500" />
-                プランアップグレード申請
-              </DialogTitle>
-              <DialogDescription className="text-xs">
-                より上位のプランへ変更し、各種利用回数上限の拡大や、専用の高度分析機能を解放します。
-              </DialogDescription>
-            </DialogHeader>
-
-            <form onSubmit={handleUpgradeSubmit} className="space-y-4 py-2 text-xs">
-              <div className="space-y-1.5">
-                <Label htmlFor="upgradePlan" className="font-bold text-slate-500">変更先プラン</Label>
-                <Select value={selectedUpgradePlan} onValueChange={setSelectedUpgradePlan}>
-                  <SelectTrigger id="upgradePlan">
-                    <SelectValue placeholder="プランを選択" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {planType === "entry" && <SelectItem value="basic">ベーシック（月額69,800円）</SelectItem>}
-                    {["entry", "basic"].includes(planType) && <SelectItem value="standard">スタンダード（月額98,000円）</SelectItem>}
-                    {["entry", "basic", "standard"].includes(planType) && <SelectItem value="advance">アドバンス（月額148,000円）</SelectItem>}
-                    {["entry", "basic", "standard", "advance"].includes(planType) && <SelectItem value="pro">プロ（月額198,000円）</SelectItem>}
-                    {planType !== "premium" && <SelectItem value="premium">プレミアム（月額298,000円）</SelectItem>}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 text-[#1A3A7B] dark:text-indigo-200 rounded-xl leading-relaxed">
-                アップグレードを行うことで、各機能制限が即時解除されます。差額分の月額保守費用は、次回請求時に調整されます。
-              </div>
-
-              <DialogFooter className="pt-4 border-t flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setIsUpgradeModalOpen(false)}>
-                  キャンセル
-                </Button>
-                <Button type="submit" disabled={!selectedUpgradePlan || isSubmittingRequest} className="bg-[#1A3A7B] text-white hover:bg-[#1A3A7B]/95 font-bold">
-                  {isSubmittingRequest ? <RefreshCw className="h-4 w-4 animate-spin" /> : "アップグレード申請"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-
-        {/* 5. Detailed Interactive Mock Reports Modal (For Unlocked Analysis Features) */}
-        <Dialog open={activeAnalysisDetail !== null} onOpenChange={() => setActiveAnalysisDetail(null)}>
-          <DialogContent className="max-w-3xl bg-background border rounded-lg shadow-lg">
-            <DialogHeader>
-              <DialogTitle className="text-lg font-bold text-primary flex items-center gap-2">
-                <BarChart2 className="h-5.5 w-5.5 text-indigo-500" />
-                {activeAnalysisDetail === "overtime" && "未払い残業リスク分析レポート"}
-                {activeAnalysisDetail === "risk" && "外国人雇用適合性・労務リスク診断"}
-                {activeAnalysisDetail === "retention" && "離職予測・エンゲージメント推移"}
-                {activeAnalysisDetail === "kpi" && "雇用管理KPI成熟度監査レポート"}
-                {activeAnalysisDetail === "premium_survey" && "外国人スタッフ職場満足度アンケート集計"}
-                {activeAnalysisDetail === "premium_roadmap" && "御社専用・外国人戦略雇用ロードマップ"}
-              </DialogTitle>
-              <DialogDescription className="text-xs">
-                当月集計された企業別詳細データです。
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="py-4 space-y-4 text-xs leading-relaxed max-h-[500px] overflow-y-auto">
-              {activeAnalysisDetail === "overtime" && (
-                <div className="space-y-4">
-                  <div className="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-905 dark:text-amber-200 rounded-xl">
-                    <strong>⚠️ 残業時間監査警告:</strong> 製造部所属の2名において、今月の時間外労働時間が36協定の特別条項限度（単月80時間）の80%を超える予測値（68時間）を検知しました。勤務シフト調整を推奨します。
-                  </div>
-                  <table className="w-full text-left border border-collapse text-slate-700 dark:text-slate-300">
-                    <thead>
-                      <tr className="bg-slate-100 dark:bg-zinc-800 font-bold border-b">
-                        <th className="p-2.5">部署</th>
-                        <th className="p-2.5">平均残業時間</th>
-                        <th className="p-2.5">労基違反リスク度</th>
-                        <th className="p-2.5">推奨アクション</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className="border-b">
-                        <td className="p-2.5 font-bold">営業部</td>
-                        <td className="p-2.5">15.5時間</td>
-                        <td className="p-2.5 text-emerald-600 font-bold">低</td>
-                        <td className="p-2.5">現状維持</td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="p-2.5 font-bold">製造部</td>
-                        <td className="p-2.5">48.2時間</td>
-                        <td className="p-2.5 text-red-600 font-bold">高</td>
-                        <td className="p-2.5 text-red-750 font-bold">【要介入】シフト再設計、業務平準化</td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="p-2.5 font-bold">建設部</td>
-                        <td className="p-2.5">32.0時間</td>
-                        <td className="p-2.5 text-amber-600 font-bold">中</td>
-                        <td className="p-2.5">時間外労働ログのデイリー監視</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {activeAnalysisDetail === "risk" && (
-                <div className="space-y-4">
-                  <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-900 dark:text-emerald-200 rounded-xl">
-                    <strong>✓ 適合性チェック完了:</strong> 法定帳票類および特定技能関係提出書類の整合性スコアは <strong>94%</strong> です。入管法・労基法違反に該当する即時重大リスクは検知されませんでした。
-                  </div>
-                  <div className="space-y-2">
-                    <h5 className="font-bold text-slate-800 dark:text-white">【指摘・推奨改善項目】</h5>
-                    <ul className="list-disc pl-5 space-y-1.5 text-slate-600 dark:text-slate-400">
-                      <li>スタッフ1名（特定技能）の転居後の住民票写しおよび居住地変更届出の回収が未完了です。（中リスク。2週間以内に回収完了してください）</li>
-                      <li>労働条件通知書の一部項目（賃金の締め・支払日）が会社就業規則の改定内容と不整合になっています。（低リスク。次回更新時に自動修正版を反映予定）</li>
-                    </ul>
-                  </div>
-                </div>
-              )}
-
-              {activeAnalysisDetail === "retention" && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between bg-slate-50 dark:bg-zinc-900 p-4 border rounded-xl flex-wrap gap-2">
-                    <div>
-                      <span className="text-slate-400 font-bold text-[10px] block">当月外国人スタッフ定着率</span>
-                      <span className="text-2xl font-black text-[#1A3A7B] dark:text-[#5C85D3]">97.2%</span>
-                      <span className="text-xs text-emerald-600 font-bold ml-2">(前月比 +0.5%)</span>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-slate-400 font-bold text-[10px] block">離職アラート対象者</span>
-                      <span className="text-xl font-bold text-amber-600">2名 (中リスク)</span>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <h5 className="font-bold text-slate-800 dark:text-white">離職リスク低減ロードマップ</h5>
-                    <p className="text-slate-600 dark:text-slate-400">
-                      中リスクと判定されたスタッフは、日本語能力試験に向けた学習進捗の遅れ、および宿舎変更に伴う一時的な環境不満が主な要因です。通訳スタッフによる月次面談時にメンタルケアを優先実施します。
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {activeAnalysisDetail === "kpi" && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 border rounded-xl text-center space-y-1">
-                      <span className="text-[10px] text-slate-400 block font-bold">雇用管理KPI総合スコア</span>
-                      <span className="text-3xl font-black text-indigo-700">88 / 100</span>
-                    </div>
-                    <div className="p-4 border rounded-xl text-center space-y-1">
-                      <span className="text-[10px] text-slate-400 block font-bold">教育プログラム完了率</span>
-                      <span className="text-3xl font-black text-emerald-700">92%</span>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <h5 className="font-bold text-slate-800 dark:text-white">主要評価項目</h5>
-                    <div className="space-y-1.5 text-slate-600 dark:text-slate-400">
-                      <div className="flex justify-between">
-                        <span>在留カード期限管理更新の適時性:</span>
-                        <span className="font-bold text-emerald-600">S (100%)</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>多言語安全教育講習受講状況:</span>
-                        <span className="font-bold text-emerald-600">A (92%)</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>労働条件通知の不満把握適時性:</span>
-                        <span className="font-bold text-amber-600">B (84%)</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {activeAnalysisDetail === "premium_survey" && (
-                <div className="space-y-4">
-                  <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 text-[#1A3A7B] dark:text-indigo-200 rounded-xl font-bold">
-                    外国人スタッフ総回答数: 14名 / 総合職場満足度スコア: 4.6 (5点満点)
-                  </div>
-                  <div className="space-y-2">
-                    <h5 className="font-bold text-slate-800 dark:text-white">【アンケート項目別スコア平均】</h5>
-                    <div className="space-y-1.5 text-slate-600 dark:text-slate-400">
-                      <div className="flex justify-between">
-                        <span>1. 職場での人間関係・相談のしやすさ:</span>
-                        <span className="font-bold text-indigo-700">4.8 / 5.0</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>2. 安全・健康管理への取り組みへの信頼度:</span>
-                        <span className="font-bold text-indigo-700">4.7 / 5.0</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>3. 給与・労働条件への納得度:</span>
-                        <span className="font-bold text-indigo-700">4.4 / 5.0</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {activeAnalysisDetail === "premium_roadmap" && (
-                <div className="space-y-4 p-4 border rounded-xl bg-slate-50/50 space-y-3">
-                  <h5 className="font-black text-sm text-[#1A3A7B]">2026年度 外国人戦略的採用・定着ロードマップ</h5>
-                  <div className="space-y-2 border-l-2 border-slate-200 pl-4 ml-2">
-                    <div className="relative">
-                      <span className="font-bold text-slate-800 block text-xs">第1四半期（4〜6月）: 基礎管理体制の確立</span>
-                      <p className="text-[10px] text-slate-500">在留カードAI管理の運用開始、安全動画講習の全社展開率90%達成。</p>
-                    </div>
-                    <div className="relative mt-3">
-                      <span className="font-bold text-slate-800 block text-xs">第2四半期（7〜9月）: 定着支援とアンケート導入</span>
-                      <p className="text-[10px] text-slate-500">外国人スタッフ満足度アンケートの初回実施、面談結果を反映した宿舎改善。</p>
-                    </div>
-                    <div className="relative mt-3">
-                      <span className="font-bold text-slate-800 block text-xs">第3四半期（10〜12月）: スキルアップ・日本語教育強化</span>
-                      <p className="text-[10px] text-slate-500">特定技能2号試験対策および特定分野向け技能講習の多言語実施。</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <DialogFooter className="pt-2 border-t mt-4">
-              <Button type="button" onClick={() => setActiveAnalysisDetail(null)} className="bg-[#1A3A7B] text-white hover:bg-[#1A3A7B]/95 font-bold">
-                閉じる
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
     );
   }
+  
+  if (!metrics) {
+    return (
+      <div className="flex h-[60vh] flex-col items-center justify-center space-y-4">
+        <RefreshCw className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">データを読み込んでいます...</p>
+      </div>
+    );
+  }
+  const m = metrics;
+
   // Admin Dashboard Welcome Title
   return (
     <div className="space-y-8 font-sans bg-[#F1F5F9] -m-4 sm:-m-6 md:-m-8 p-6 sm:p-8 md:p-10 min-h-[calc(100vh-4rem)]">
@@ -2309,7 +1177,7 @@ export default function DashboardPage() {
                 現在、3ヶ月以内に満了を迎える従業員はいません。
               </div>
             ) : (
-              m.upcomingRenewals.map((emp) => (
+              m.upcomingRenewals.map((emp: any) => (
                 <div key={emp.id} className="flex items-center gap-4 p-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors">
                   <Avatar className="h-10 w-10 border border-muted">
                     <AvatarFallback className="font-bold text-xs bg-indigo-50 text-indigo-600">{emp.name.substring(0, 2).toUpperCase()}</AvatarFallback>
@@ -2350,7 +1218,7 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <ul className="space-y-3">
-                  {m.alerts.map((alert) => (
+                  {m.alerts.map((alert: any) => (
                     <li key={alert.id} className="flex flex-col gap-2 p-3 bg-red-500/5 rounded-lg border border-red-500/10 text-xs">
                       <div className="flex items-center justify-between gap-2">
                         <span className={`font-bold ${alert.severity === "critical" ? "text-red-700 dark:text-red-400" : "text-amber-700 dark:text-amber-400"}`}>
@@ -2439,7 +1307,7 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="flex flex-col gap-3">
-                {m.companies.map((company) => (
+                {m.companies.map((company: any) => (
                   <Button key={company.id} className="w-full justify-between hover:bg-slate-50 border-slate-100 bg-white text-slate-800 font-semibold h-11 px-4 rounded-xl shadow-sm transition-all hover:shadow" variant="outline" asChild>
                     <Link href={`/dashboard/companies/${company.id}`}>
                       <span className="flex items-center font-bold text-slate-850">
