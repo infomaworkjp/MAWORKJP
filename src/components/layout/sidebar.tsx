@@ -3,7 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { PanelLeft, Users, Building, CalendarDays, Mail, FileText, BarChart3, BellRing, Stethoscope, ShieldCheck, Languages, HeartHandshake, Gem } from "lucide-react"
+import { PanelLeft, Users, Building, CalendarDays, Mail, FileText, BarChart3, BellRing, Stethoscope, ShieldCheck, Languages, HeartHandshake, Gem, Calculator } from "lucide-react"
 
 import { Sidebar, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarMenuSub, SidebarMenuSubButton, SidebarGroup, SidebarHeader, SidebarSeparator, SidebarGroupLabel, SidebarFooter } from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils"
@@ -12,6 +12,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { getCompanyById } from "@/app/actions/companies"
 import { useToast } from "@/hooks/use-toast"
 import { Lock } from "lucide-react"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 
 // Placeholder for navigation items
 const adminNavItems = [
@@ -57,49 +58,55 @@ const companyNavItems = [
     title: "自社プロフィール",
     href: "/dashboard/companies",
     icon: Building,
-    tier: "light",
+    minLevel: 1,
   },
   {
     title: "従業員一覧",
     href: "/dashboard/companies?tab=employees",
     icon: Users,
-    tier: "light",
+    minLevel: 1,
   },
   {
     title: "基本管理",
     href: "/dashboard/companies?tab=visa",
     icon: CalendarDays,
-    tier: "light",
+    minLevel: 1,
   },
   {
     title: "翻訳通訳相談",
     href: "/dashboard",
     icon: Languages,
-    tier: "standard",
+    minLevel: 1,
   },
   {
     title: "雇用契約サポート",
     href: "/dashboard",
     icon: FileText,
-    tier: "standard",
+    minLevel: 3,
   },
   {
     title: "法令・安全教育",
     href: "/dashboard/companies?tab=templates",
     icon: ShieldCheck,
-    tier: "standard",
+    minLevel: 3,
   },
   {
     title: "現場労務対応",
     href: "/dashboard",
     icon: HeartHandshake,
-    tier: "premium",
+    minLevel: 4,
   },
   {
     title: "上位プラン専用",
     href: "/dashboard/companies?tab=executive",
     icon: Gem,
-    tier: "premium",
+    minLevel: 5,
+  },
+  {
+    title: "オプション料金一覧",
+    href: "#options-pricing",
+    icon: Calculator,
+    minLevel: 1,
   },
 ]
 
@@ -176,23 +183,20 @@ export function SidebarNav({ className }: { className?: string }) {
         )}
 
         {user?.role === "company" && (() => {
-          const getPlanCategory = (plan: string): "light" | "standard" | "premium" => {
-            const p = (plan || "entry").toLowerCase();
-            if (p === "premium") return "premium";
-            if (p === "standard" || p === "advance" || p === "pro") return "standard";
-            return "light";
+          const currentUser = {
+            ...user,
+            planLevel: (() => {
+              const p = (planType || "entry").toLowerCase();
+              if (p === "premium") return 6;
+              if (p === "pro") return 5;
+              if (p === "advance") return 4;
+              if (p === "standard") return 3;
+              if (p === "basic") return 2;
+              return 1;
+            })()
           };
 
-          const category = getPlanCategory(planType);
-          const visibleItems = companyNavItems.filter((item: any) => {
-            if (category === "light") {
-              return item.tier === "light";
-            }
-            if (category === "standard") {
-              return item.tier === "light" || item.tier === "standard";
-            }
-            return true; // premium sees all
-          });
+          const visibleItems = companyNavItems.filter((item) => currentUser.planLevel >= item.minLevel);
 
           return (
             <SidebarGroup>
@@ -229,11 +233,105 @@ export function SidebarNav({ className }: { className?: string }) {
                     e.preventDefault();
                     toast({
                       title: "プラン制限",
-                      description: `「${item.title}」機能はお使いのプラン（${planType.toUpperCase()}）または契約オプションではご利用いただけません。アップグレードをご検討ください。`,
+                      description: `「${item.title}」機能はお使いのプラン（${planType.toUpperCase()}）ではご利用いただけません。アップグレードが必要です。`,
                       variant: "destructive",
                     });
                   }
                 };
+
+                // Options Pricing Modal dialog wrapper
+                if (item.title === "オプション料金一覧") {
+                  return (
+                    <SidebarMenuItem key={item.title}>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <SidebarMenuButton
+                            size="lg"
+                            tooltip={item.title}
+                            className="w-full text-left"
+                          >
+                            <item.icon className="h-5 w-5" />
+                            {!isCollapsed && <span>{item.title}</span>}
+                          </SidebarMenuButton>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-md bg-background border rounded-lg shadow-lg">
+                          <DialogHeader>
+                            <DialogTitle className="text-base font-bold flex items-center gap-2 text-primary">
+                              <Calculator className="h-5 w-5 text-indigo-500" />
+                              オプション料金・追加費用一覧
+                            </DialogTitle>
+                            <DialogDescription className="text-xs">
+                              基本プランに含まれない、個別にご依頼可能なオプションサービスの一覧です。
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="max-h-[350px] overflow-y-auto pr-1 text-xs">
+                            <table className="w-full text-left border-collapse text-slate-700 dark:text-slate-350">
+                              <thead>
+                                <tr className="border-b bg-muted/50 font-bold">
+                                  <th className="p-2">サービス名</th>
+                                  <th className="p-2 text-right">料金 (税別)</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y">
+                                <tr className="hover:bg-muted/10">
+                                  <td className="p-2 font-semibold">多言語安全教育（講習申請）</td>
+                                  <td className="p-2 text-right text-indigo-600 font-bold">15,000円</td>
+                                </tr>
+                                <tr className="hover:bg-muted/10">
+                                  <td className="p-2 font-semibold">現場訪問サポート</td>
+                                  <td className="p-2 text-right text-indigo-600 font-bold">20,000円</td>
+                                </tr>
+                                <tr className="hover:bg-muted/10">
+                                  <td className="p-2 font-semibold">緊急通訳手配 (24時間)</td>
+                                  <td className="p-2 text-right text-indigo-600 font-bold">15,000円</td>
+                                </tr>
+                                <tr className="hover:bg-muted/10">
+                                  <td className="p-2 font-semibold">スポット労務相談</td>
+                                  <td className="p-2 text-right text-indigo-600 font-bold">5,000円</td>
+                                </tr>
+                                <tr className="hover:bg-muted/10">
+                                  <td className="p-2 font-semibold">翻訳追加 (A4 1ページ)</td>
+                                  <td className="p-2 text-right text-indigo-600 font-bold">8,000円</td>
+                                </tr>
+                                <tr className="hover:bg-muted/10">
+                                  <td className="p-2 font-semibold">通訳追加 (1時間)</td>
+                                  <td className="p-2 text-right text-indigo-600 font-bold">10,000円</td>
+                                </tr>
+                                <tr className="hover:bg-muted/10">
+                                  <td className="p-2 font-semibold">修了証PDF発行のみ</td>
+                                  <td className="p-2 text-right text-indigo-600 font-bold">5,000円</td>
+                                </tr>
+                                <tr className="hover:bg-muted/10">
+                                  <td className="p-2 font-semibold">案内文作成代行</td>
+                                  <td className="p-2 text-right text-indigo-600 font-bold">3,000円</td>
+                                </tr>
+                                <tr className="hover:bg-muted/10">
+                                  <td className="p-2 font-semibold">雇用契約書作成依頼</td>
+                                  <td className="p-2 text-right text-indigo-600 font-bold">10,000円</td>
+                                </tr>
+                                <tr className="hover:bg-muted/10">
+                                  <td className="p-2 font-semibold">労働条件通知書作成依頼</td>
+                                  <td className="p-2 text-right text-indigo-600 font-bold">8,000円</td>
+                                </tr>
+                                <tr className="hover:bg-muted/10">
+                                  <td className="p-2 font-semibold">契約内容整合性確認依頼</td>
+                                  <td className="p-2 text-right text-indigo-600 font-bold">5,000円</td>
+                                </tr>
+                                <tr className="hover:bg-muted/10">
+                                  <td className="p-2 font-semibold">ヒアリング報告書作成依頼</td>
+                                  <td className="p-2 text-right text-indigo-600 font-bold">5,000円</td>
+                                </tr>
+                              </tbody>
+                            </table>
+                            <p className="text-[10px] text-muted-foreground mt-3 leading-relaxed font-semibold">
+                              ※ 翻訳は1週間前（7日前）までにご依頼ください。期限未満の場合は緊急対応料金（3日以内: +30%, 翌日: +50%, 当日: +100%）が発生します。
+                            </p>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    </SidebarMenuItem>
+                  );
+                }
 
                 return (
                   <SidebarMenuItem key={item.title}>
@@ -241,7 +339,7 @@ export function SidebarNav({ className }: { className?: string }) {
                       asChild
                       size="lg"
                       isActive={isActive}
-                      tooltip={isLocked ? `${item.title} (ロック中)` : item.title}
+                      tooltip={isLocked ? `${item.title} (アップグレードが必要です)` : item.title}
                       className={cn(isLocked && "opacity-50")}
                     >
                       <Link href={targetHref} onClick={handleItemClick}>
