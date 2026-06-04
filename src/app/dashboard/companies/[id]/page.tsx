@@ -22,6 +22,7 @@ import { sendExpertEmail, getEmailHistory } from "@/app/actions/emails";
 import { saveTrainingLog, getTrainingLogsByCompanyId } from "@/app/actions/training";
 import { getIndustryContent } from "@/lib/industryConfig";
 import { ResidenceCardScanner } from "@/components/residence-card/scanner-card";
+import { getRequestsByCompanyId } from "@/app/actions/requests";
 import { ResidenceCardData } from "@/app/actions/scan-residence-card";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -189,8 +190,10 @@ export default function CompanyDetailPage() {
   const [company, setCompany] = useState<CompanyWithId | null>(null);
   const [employees, setEmployees] = useState<any[]>([]);
   const [emailHistory, setEmailHistory] = useState<any[]>([]);
+  const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [requestsLoading, setRequestsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("profile");
   const [employeeFilter, setEmployeeFilter] = useState<string | null>(null);
 
@@ -373,8 +376,8 @@ export default function CompanyDetailPage() {
           setTrainingLogs(trainingRes.data);
         }
 
-        // 5. Get Email History (Admin only)
-        if (user?.role === "admin") {
+        // 5. Get Email History (Admin or Company)
+        if (user?.role === "admin" || user?.role === "company") {
           setHistoryLoading(true);
           const historyRes = await getEmailHistory(id);
           if (historyRes.success && historyRes.data) {
@@ -382,6 +385,14 @@ export default function CompanyDetailPage() {
           }
           setHistoryLoading(false);
         }
+
+        // 6. Get Requests History
+        setRequestsLoading(true);
+        const reqRes = await getRequestsByCompanyId(id);
+        if (reqRes.success && reqRes.data) {
+          setRequests(reqRes.data);
+        }
+        setRequestsLoading(false);
       } else {
         if (user?.role === "company") {
           toast({
@@ -1848,50 +1859,52 @@ export default function CompanyDetailPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-6 h-auto p-1 gap-1.5 bg-muted/65 rounded-xl border">
-          <TabsTrigger value="profile" className="font-bold text-xs py-2.5 rounded-lg transition-all">
-            プロフィール
-          </TabsTrigger>
-          <TabsTrigger value="employees" className="font-bold text-xs py-2.5 rounded-lg transition-all">
-            従業員一覧
-          </TabsTrigger>
-          <TabsTrigger
-            value="visa"
-            className="font-bold text-xs py-2.5 rounded-lg transition-all flex items-center justify-center gap-1"
-          >
-            在留期限・更新予定
-            {!isVisaAllowed && (
-              <Lock className="h-3 w-3 text-muted-foreground shrink-0" />
-            )}
-          </TabsTrigger>
-          <TabsTrigger
-            value="templates"
-            className="font-bold text-xs py-2.5 rounded-lg transition-all flex items-center justify-center gap-1"
-          >
-            安全教育・テンプレート
-            {!isSafetyAllowed && (
-              <Lock className="h-3 w-3 text-muted-foreground shrink-0" />
-            )}
-          </TabsTrigger>
-          <TabsTrigger
-            value="ai-audit"
-            className="font-bold text-xs py-2.5 rounded-lg transition-all flex items-center justify-center gap-1"
-          >
-            AIコンプライアンス
-            {!isAiAuditAllowed && (
-              <Lock className="h-3 w-3 text-muted-foreground shrink-0" />
-            )}
-          </TabsTrigger>
-          <TabsTrigger
-            value="executive"
-            className="font-bold text-xs py-2.5 rounded-lg transition-all flex items-center justify-center gap-1"
-          >
-            エグゼクティブDB
-            {!isExecutiveAllowed && (
-              <Lock className="h-3 w-3 text-muted-foreground shrink-0" />
-            )}
-          </TabsTrigger>
-        </TabsList>
+        {user.role === "admin" && (
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-6 h-auto p-1 gap-1.5 bg-muted/65 rounded-xl border">
+            <TabsTrigger value="profile" className="font-bold text-xs py-2.5 rounded-lg transition-all">
+              プロフィール
+            </TabsTrigger>
+            <TabsTrigger value="employees" className="font-bold text-xs py-2.5 rounded-lg transition-all">
+              従業員一覧
+            </TabsTrigger>
+            <TabsTrigger
+              value="visa"
+              className="font-bold text-xs py-2.5 rounded-lg transition-all flex items-center justify-center gap-1"
+            >
+              在留期限・更新予定
+              {!isVisaAllowed && (
+                <Lock className="h-3 w-3 text-muted-foreground shrink-0" />
+              )}
+            </TabsTrigger>
+            <TabsTrigger
+              value="templates"
+              className="font-bold text-xs py-2.5 rounded-lg transition-all flex items-center justify-center gap-1"
+            >
+              安全教育・テンプレート
+              {!isSafetyAllowed && (
+                <Lock className="h-3 w-3 text-muted-foreground shrink-0" />
+              )}
+            </TabsTrigger>
+            <TabsTrigger
+              value="ai-audit"
+              className="font-bold text-xs py-2.5 rounded-lg transition-all flex items-center justify-center gap-1"
+            >
+              AIコンプライアンス
+              {!isAiAuditAllowed && (
+                <Lock className="h-3 w-3 text-muted-foreground shrink-0" />
+              )}
+            </TabsTrigger>
+            <TabsTrigger
+              value="executive"
+              className="font-bold text-xs py-2.5 rounded-lg transition-all flex items-center justify-center gap-1"
+            >
+              エグゼクティブDB
+              {!isExecutiveAllowed && (
+                <Lock className="h-3 w-3 text-muted-foreground shrink-0" />
+              )}
+            </TabsTrigger>
+          </TabsList>
+        )}
 
         <TabsContent value="profile" className="space-y-6 outline-none focus:ring-0">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -2420,6 +2433,170 @@ export default function CompanyDetailPage() {
               </Dialog>
             </CardContent>
           </Card>
+
+          {/* 追加の依頼履歴（サービス利用申請） */}
+          <Card className="lg:col-span-2 shadow-sm border border-border">
+            <CardHeader className="bg-muted/15 pb-4 border-b">
+              <CardTitle className="text-sm font-bold flex items-center gap-1.5 text-primary">
+                <History className="h-4.5 w-4.5 text-indigo-600" />
+                追加の依頼履歴（サービス利用申請）
+              </CardTitle>
+              <CardDescription className="text-xs">
+                これまでに申請された翻訳・通訳の依頼やオプション機能の追加などの履歴です。
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-5">
+              {requestsLoading ? (
+                <div className="flex items-center justify-center py-6 text-xs text-muted-foreground">
+                  <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                  読み込み中...
+                </div>
+              ) : requests.length === 0 ? (
+                <div className="text-center py-8 text-xs text-muted-foreground">
+                  追加の依頼履歴はありません。翻訳・通訳などのサービスは各メニューからご依頼いただけます。
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs text-left text-muted-foreground">
+                    <thead className="text-[10px] text-primary uppercase bg-muted/50 font-bold border-b">
+                      <tr>
+                        <th className="px-4 py-3">申請日</th>
+                        <th className="px-4 py-3">申請者</th>
+                        <th className="px-4 py-3">依頼内容</th>
+                        <th className="px-4 py-3">ステータス</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {requests.map((req) => {
+                        const dateStr = req.createdAt
+                          ? new Date(req.createdAt).toLocaleDateString("ja-JP", {
+                              year: "numeric",
+                              month: "2-digit",
+                              day: "2-digit",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "不明";
+                        
+                        let typeLabel = req.details || req.item || "詳細不明";
+                        if (req.type === "translation") typeLabel = req.details || "翻訳依頼";
+                        if (req.type === "interpretation") typeLabel = req.details || "通訳対応";
+                        if (req.type === "upgrade") typeLabel = req.details || "プラン変更";
+                        if (req.type === "option") {
+                          const opt = AVAILABLE_OPTIONS.find(o => o.key === req.item);
+                          typeLabel = opt ? `オプション追加: ${opt.name}` : `オプション追加: ${req.item}`;
+                        }
+
+                        const sender = req.senderName || company.contactName || "企業担当者";
+
+                        return (
+                          <tr key={req.id} className="hover:bg-muted/20">
+                            <td className="px-4 py-3.5 font-medium text-primary whitespace-nowrap">{dateStr}</td>
+                            <td className="px-4 py-3.5 text-primary">{sender}</td>
+                            <td className="px-4 py-3.5 text-primary max-w-[200px] truncate" title={typeLabel}>
+                              {typeLabel}
+                            </td>
+                            <td className="px-4 py-3.5 whitespace-nowrap">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                req.status === "completed" || req.status === "sent" || req.status === "applied"
+                                  ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                                  : "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                              }`}>
+                                {req.status === "completed" ? "完了" : req.status === "sent" ? "送信済" : req.status === "applied" ? "申請済" : "処理中"}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* 緊急対応履歴 */}
+          {(() => {
+            const emergencyHistory = emailHistory.filter(h => 
+              h.type === "auto_apply" || 
+              h.subject?.includes("緊急") || 
+              h.subject?.includes("アラート") || 
+              h.message?.includes("緊急")
+            );
+
+            return (
+              <Card className="lg:col-span-2 shadow-sm border border-border">
+                <CardHeader className="bg-muted/15 pb-4 border-b">
+                  <CardTitle className="text-sm font-bold flex items-center gap-1.5 text-primary">
+                    <ShieldAlert className="h-4.5 w-4.5 text-red-500" />
+                    緊急対応履歴
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    在留期限アラート等の緊急対応や、専門家への緊急連絡履歴です。
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-5">
+                  {historyLoading ? (
+                    <div className="flex items-center justify-center py-6 text-xs text-muted-foreground">
+                      <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                      読み込み中...
+                    </div>
+                  ) : emergencyHistory.length === 0 ? (
+                    <div className="flex items-center gap-3 p-4 rounded-xl border border-emerald-100 bg-emerald-50/20 dark:bg-emerald-950/10 text-emerald-800 dark:text-emerald-300">
+                      <ShieldCheck className="h-5 w-5 text-emerald-500 shrink-0" />
+                      <div className="text-xs leading-relaxed font-semibold">
+                        現在、緊急対応が必要な事項はありません。すべてのステータスは正常です。
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs text-left text-muted-foreground">
+                        <thead className="text-[10px] text-primary uppercase bg-muted/50 font-bold border-b">
+                          <tr>
+                            <th className="px-4 py-3">対応日時</th>
+                            <th className="px-4 py-3">対象者 / 連絡先</th>
+                            <th className="px-4 py-3">対応内容</th>
+                            <th className="px-4 py-3">状況</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {emergencyHistory.map((h) => {
+                            const dateStr = h.sentAt
+                              ? new Date(h.sentAt).toLocaleDateString("ja-JP", {
+                                  year: "numeric",
+                                  month: "2-digit",
+                                  day: "2-digit",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })
+                              : "不明";
+
+                            return (
+                              <tr key={h.id} className="hover:bg-muted/20">
+                                <td className="px-4 py-3.5 font-medium text-primary whitespace-nowrap">{dateStr}</td>
+                                <td className="px-4 py-3.5 text-primary">
+                                  <div className="font-bold">{h.expertName}</div>
+                                  <div className="text-[10px] text-muted-foreground">{h.expertEmail}</div>
+                                </td>
+                                <td className="px-4 py-3.5 text-primary max-w-[200px] truncate" title={h.subject}>
+                                  {h.subject}
+                                </td>
+                                <td className="px-4 py-3.5 whitespace-nowrap">
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/10 text-red-500 border border-red-500/20">
+                                    対応済
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })()}
         </div>
       </TabsContent>
 
@@ -2448,7 +2625,7 @@ export default function CompanyDetailPage() {
                   PDF出力
                 </Button>
 
-                {user.role === "admin" && (
+                {(user.role === "admin" || user.role === "company") && (
                   <div className="flex items-center gap-2">
                     {/* Trigger AI Scanner Modal */}
                     <Button 
@@ -2779,7 +2956,7 @@ export default function CompanyDetailPage() {
                         <p className="font-bold text-sm">所属する外国人従業員が登録されていません。</p>
                         <p className="text-xs text-muted-foreground mt-0.5">本番の最初のデータを登録してください。</p>
                       </div>
-                      {user.role === "admin" && (
+                      {(user.role === "admin" || user.role === "company") && (
                         <Button onClick={handleOpenCreateEmpModal} className="mt-2 bg-[#1A3A7B] text-white text-xs font-bold">
                           <Plus className="h-3.5 w-3.5 mr-1" />
                           従業員を追加する
@@ -2839,7 +3016,7 @@ export default function CompanyDetailPage() {
                           <th className="p-4">在留資格</th>
                           <th className="p-4">期限満了日</th>
                           <th className="p-4">ステータス</th>
-                          {user.role === "admin" && <th className="p-4 text-right">管理操作</th>}
+                          {(user.role === "admin" || user.role === "company") && <th className="p-4 text-right">管理操作</th>}
                         </tr>
                       </thead>
                       <tbody>
@@ -2873,7 +3050,7 @@ export default function CompanyDetailPage() {
                                   {statusText}
                                 </span>
                               </td>
-                              {user.role === "admin" && (
+                              {(user.role === "admin" || user.role === "company") && (
                                 <td className="p-4 text-right space-x-1.5">
                                   <Button 
                                     variant="ghost" 
