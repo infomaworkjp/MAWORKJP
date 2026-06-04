@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { 
   Building, ArrowLeft, ShieldAlert, RefreshCw, Mail, Phone, MapPin, Check, 
   Sparkles, AlertCircle, FileCheck, Lock, Users, ShieldCheck, FileText, 
@@ -315,20 +315,22 @@ export default function CompanyDetailPage() {
     department: ""
   });
 
-  // Read URL search query for initial tab activation
+  const searchParams = useSearchParams();
+  const tabParam = searchParams ? searchParams.get("tab") : null;
+  const filterParam = searchParams ? searchParams.get("filter") : null;
+
+  // React to URL search query changes (tab and filter)
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const searchParams = new URLSearchParams(window.location.search);
-      const tab = searchParams.get("tab");
-      if (tab) {
-        setActiveTab(tab);
-      }
-      const filter = searchParams.get("filter");
-      if (filter) {
-        setEmployeeFilter(filter);
-      }
+    if (tabParam) {
+      setActiveTab(tabParam);
+    } else {
+      setActiveTab("profile"); // default tab
     }
-  }, []);
+  }, [tabParam]);
+
+  useEffect(() => {
+    setEmployeeFilter(filterParam);
+  }, [filterParam]);
 
   // Guard: Protect route for admin or specific company user
   useEffect(() => {
@@ -1464,52 +1466,7 @@ export default function CompanyDetailPage() {
         )}
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-6 h-auto p-1 gap-1.5 bg-muted/65 rounded-xl border">
-          <TabsTrigger value="profile" className="font-bold text-xs py-2.5 rounded-lg transition-all">
-            プロフィール
-          </TabsTrigger>
-          <TabsTrigger value="employees" className="font-bold text-xs py-2.5 rounded-lg transition-all">
-            従業員一覧
-          </TabsTrigger>
-          <TabsTrigger
-            value="visa"
-            className="font-bold text-xs py-2.5 rounded-lg transition-all flex items-center justify-center gap-1"
-          >
-            在留期限・更新予定
-            {!isVisaAllowed && (
-              <Lock className="h-3 w-3 text-muted-foreground shrink-0" />
-            )}
-          </TabsTrigger>
-          <TabsTrigger
-            value="templates"
-            className="font-bold text-xs py-2.5 rounded-lg transition-all flex items-center justify-center gap-1"
-          >
-            安全教育・テンプレート
-            {!isSafetyAllowed && (
-              <Lock className="h-3 w-3 text-muted-foreground shrink-0" />
-            )}
-          </TabsTrigger>
-          <TabsTrigger
-            value="ai-audit"
-            className="font-bold text-xs py-2.5 rounded-lg transition-all flex items-center justify-center gap-1"
-          >
-            AIコンプライアンス
-            {!isAiAuditAllowed && (
-              <Lock className="h-3 w-3 text-muted-foreground shrink-0" />
-            )}
-          </TabsTrigger>
-          <TabsTrigger
-            value="executive"
-            className="font-bold text-xs py-2.5 rounded-lg transition-all flex items-center justify-center gap-1"
-          >
-            エグゼクティブDB
-            {!isExecutiveAllowed && (
-              <Lock className="h-3 w-3 text-muted-foreground shrink-0" />
-            )}
-          </TabsTrigger>
-        </TabsList>
-
+      <Tabs value={activeTab} className="w-full space-y-6">
         <TabsContent value="profile" className="space-y-6 outline-none focus:ring-0">
           
           {/* 2-Column Responsive Layout (Left 1/3, Right 2/3) */}
