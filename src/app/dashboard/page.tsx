@@ -107,7 +107,11 @@ const OPTIONS_LIST = [
   { key: "translation_add", name: "翻訳追加（1ページ）", price: "8,000", desc: "A4用紙1ページ（1〜1,500文字程度）の追加翻訳。" },
   { key: "interpretation_add", name: "通訳追加（1時間）", price: "10,000", desc: "通訳担当者による現場・オンラインの1時間追加対応。" },
   { key: "certificate_only", name: "修了証PDF発行のみ", price: "5,000", desc: "安全講習などの修了証PDFの単発発行および保管。" },
-  { key: "document_draft", name: "案内文作成代行", price: "3,000", desc: "外国人向け社内通知文書や案内文 of 翻訳・ドラフト作成。" }
+  { key: "document_draft", name: "案内文作成代行", price: "3,000", desc: "外国人向け社内通知文書や案内文の翻訳・ドラフト作成。" },
+  { key: "employment_contract_draft", name: "雇用契約書作成依頼", price: "10,000", desc: "外国人スタッフ用の雇用契約書（多言語対応可）の作成代行。" },
+  { key: "labor_conditions_draft", name: "労働条件通知書作成依頼", price: "8,000", desc: "トラブル防止のための多言語労働条件通知書の作成代行。" },
+  { key: "contract_audit", name: "契約内容確認依頼", price: "5,000", desc: "既存の契約内容が入管法や労基法に適合しているかの監査・確認。" },
+  { key: "report_draft", name: "報告書作成依頼", price: "5,000", desc: "ヒアリング内容に基づく双方合意の事実確認報告書の作成代行。" }
 ];
 
 export default function DashboardPage() {
@@ -933,128 +937,775 @@ export default function DashboardPage() {
           </Card>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Left Side: Alerts */}
-          <div className="space-y-6">
-            {/* ① 在留カード更新アラート */}
-            <Card className="hover:shadow-lg transition-all border border-slate-100 dark:border-zinc-800 overflow-hidden bg-white dark:bg-zinc-900">
-              <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50/30 dark:from-zinc-900 dark:to-zinc-900/50 p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg text-blue-700 dark:text-blue-200">
-                      <ShieldAlert className="h-5 w-5" />
-                    </div>
-                    <CardTitle className="text-lg font-black text-slate-800 dark:text-slate-100">① 在留カード更新アラート</CardTitle>
-                  </div>
-                  <span className="text-xs text-slate-400 font-medium">3ヶ月以内</span>
+        {/* Redesigned 8-Category Menu Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          
+          {/* 1. 自社プロフィール */}
+          <Card className="hover:shadow-lg transition-all border border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-xl flex flex-col justify-between overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-blue-50/50 to-indigo-50/10 dark:from-zinc-900 dark:to-zinc-900/50 p-6 border-b">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-blue-100 dark:bg-blue-900 rounded-lg text-blue-700 dark:text-blue-200 shrink-0">
+                  <Building className="h-5.5 w-5.5" />
                 </div>
-              </CardHeader>
-              <CardContent className="p-6 flex flex-col items-center justify-center min-h-[140px]">
-                {expiringVisaEmployees.length > 0 ? (
-                  <div className="text-center space-y-4 w-full">
-                    <div className="text-3xl font-black text-amber-600 dark:text-amber-400">
-                      更新対象 {expiringVisaEmployees.length}名
-                    </div>
-                    <p className="text-xs text-slate-500">在留期限が残り3ヶ月以内の従業員がいます。</p>
-                    <Button asChild className="w-full bg-[#1A3A7B] text-white hover:bg-[#1A3A7B]/90 font-bold">
-                      <Link href={`/dashboard/companies/${user.companyId}?tab=employees&filter=visa`}>
-                        対象者一覧へ
-                      </Link>
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="text-center space-y-2">
-                    <div className="text-2xl font-bold text-slate-400 dark:text-slate-500">対象者なし</div>
-                    <p className="text-xs text-slate-400">現在、3ヶ月以内に更新が必要な対象者はいません。</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* ② 契約更新アラート */}
-            <Card className="hover:shadow-lg transition-all border border-slate-100 dark:border-zinc-800 overflow-hidden bg-white dark:bg-zinc-900">
-              <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50/30 dark:from-zinc-900 dark:to-zinc-900/50 p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="p-2 bg-indigo-100 dark:bg-indigo-900 rounded-lg text-indigo-700 dark:text-indigo-200">
-                      <FileWarning className="h-5 w-5" />
-                    </div>
-                    <CardTitle className="text-lg font-black text-slate-800 dark:text-slate-100">② 契約更新アラート</CardTitle>
-                  </div>
-                  <span className="text-xs text-slate-400 font-medium">3ヶ月以内</span>
+                <div>
+                  <CardTitle className="text-base font-black text-slate-800 dark:text-slate-100">1. 自社プロフィール</CardTitle>
+                  <CardDescription className="text-xs mt-1">会社情報の確認・編集を行うことができます。</CardDescription>
                 </div>
-              </CardHeader>
-              <CardContent className="p-6 flex flex-col items-center justify-center min-h-[140px]">
-                {expiringContractEmployees.length > 0 ? (
-                  <div className="text-center space-y-4 w-full">
-                    <div className="text-3xl font-black text-[#1A3A7B] dark:text-[#5C85D3]">
-                      契約更新対象 {expiringContractEmployees.length}名
-                    </div>
-                    <p className="text-xs text-slate-500">契約終了日が残り3ヶ月以内の従業員がいます。</p>
-                    <Button asChild className="w-full bg-[#1A3A7B] text-white hover:bg-[#1A3A7B]/90 font-bold">
-                      <Link href={`/dashboard/companies/${user.companyId}?tab=employees&filter=contract`}>
-                        対象者一覧へ
-                      </Link>
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="text-center space-y-2">
-                    <div className="text-2xl font-bold text-slate-400 dark:text-slate-500">対象者なし</div>
-                    <p className="text-xs text-slate-400">現在、3ヶ月以内に契約更新が必要な対象者はいません。</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Right Side: Specialist Contact Center */}
-          <Card className="border border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-md">
-            <CardHeader className="border-b border-slate-100 dark:border-zinc-800 p-6">
-              <div className="flex items-center gap-2">
-                <div className="p-2 bg-emerald-100 dark:bg-emerald-900 rounded-lg text-emerald-700 dark:text-emerald-250">
-                  <Scale className="h-5 w-5" />
-                </div>
-                <CardTitle className="text-lg font-black text-slate-800 dark:text-slate-100">③ 専門家連絡センター</CardTitle>
               </div>
-              <CardDescription className="text-xs">
-                各種専門家へワンクリックで連絡を取ることができます。
-              </CardDescription>
             </CardHeader>
-            <CardContent className="p-6 space-y-4">
-              <div className="grid grid-cols-1 gap-3">
-                <Button asChild variant="outline" className="justify-start gap-3 h-12 text-sm font-bold border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800">
-                  <a href="mailto:gyosei@maworkjp.com?subject=行政書士への相談依頼&body=MA WORK JP ポータルより自動生成%0D%0A%0D%0Aご相談内容をご記入ください：">
-                    <span className="text-lg">✉️</span> 行政書士へメール
-                  </a>
-                </Button>
-                
-                <Button asChild variant="outline" className="justify-start gap-3 h-12 text-sm font-bold border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800">
-                  <a href="mailto:sharoushi@maworkjp.com?subject=社労士への相談依頼&body=MA WORK JP ポータルより自動生成%0D%0A%0D%0Aご相談内容をご記入ください：">
-                    <span className="text-lg">✉️</span> 社労士へメール
-                  </a>
-                </Button>
+            <CardContent className="p-6 flex-1 flex flex-col justify-end">
+              <Button asChild className="w-full bg-[#1A3A7B] text-white hover:bg-[#1A3A7B]/90 font-bold gap-1 shadow-sm">
+                <Link href={`/dashboard/companies/${user.companyId}?tab=profile`}>
+                  自社プロフィールを開く <ChevronRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
 
-                <Button asChild variant="outline" className="justify-start gap-3 h-12 text-sm font-bold border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800">
-                  <a href="mailto:lawyer@maworkjp.com?subject=弁護士への相談依頼&body=MA WORK JP ポータルより自動生成%0D%0A%0D%0Aご相談内容をご記入ください：">
-                    <span className="text-lg">✉️</span> 弁護士へメール
-                  </a>
-                </Button>
+          {/* 2. 従業員一覧 */}
+          <Card className="hover:shadow-lg transition-all border border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-xl flex flex-col justify-between overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-blue-50/50 to-indigo-50/10 dark:from-zinc-900 dark:to-zinc-900/50 p-6 border-b">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-indigo-100 dark:bg-indigo-900 rounded-lg text-indigo-700 dark:text-indigo-200 shrink-0">
+                  <Users className="h-5.5 w-5.5" />
+                </div>
+                <div>
+                  <CardTitle className="text-base font-black text-slate-800 dark:text-slate-100">2. 従業員一覧</CardTitle>
+                  <CardDescription className="text-xs mt-1">登録されている従業員の確認や詳細表示を行います。</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6 flex-1 flex flex-col justify-end">
+              <Button asChild className="w-full bg-[#1A3A7B] text-white hover:bg-[#1A3A7B]/90 font-bold gap-1 shadow-sm">
+                <Link href={`/dashboard/companies/${user.companyId}?tab=employees`}>
+                  従業員一覧を開く <ChevronRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
 
-                <Button asChild variant="outline" className="justify-start gap-3 h-12 text-sm font-bold border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800">
-                  <a href="mailto:translate@maworkjp.com?subject=翻訳通訳への相談依頼&body=MA WORK JP ポータルより自動生成%0D%0A%0D%0Aご相談内容をご記入ください：">
-                    <span className="text-lg">✉️</span> 翻訳通訳へのメール
-                  </a>
+          {/* 3. 基本管理 */}
+          <Card className="hover:shadow-lg transition-all border border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-xl overflow-hidden flex flex-col">
+            <CardHeader className="bg-gradient-to-r from-blue-50/50 to-indigo-50/10 dark:from-zinc-900 dark:to-zinc-900/50 p-6 border-b">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-emerald-100 dark:bg-emerald-900 rounded-lg text-emerald-700 dark:text-emerald-250 shrink-0">
+                  <CalendarDays className="h-5.5 w-5.5" />
+                </div>
+                <div>
+                  <CardTitle className="text-base font-black text-slate-800 dark:text-slate-100">3. 基本管理</CardTitle>
+                  <CardDescription className="text-xs mt-1">在留カード、雇用契約書の満了管理やPDF出力。</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4 flex-1 flex flex-col justify-between">
+              <div className="space-y-2">
+                <Button size="sm" variant="outline" asChild className="w-full justify-start font-bold gap-2 text-slate-700 dark:text-slate-350">
+                  <Link href={`/dashboard/companies/${user.companyId}?tab=employees&filter=visa`}>
+                    🛡️ 在留カード期限管理 ({expiringVisaEmployees.length}名対象)
+                  </Link>
                 </Button>
+                <Button size="sm" variant="outline" asChild className="w-full justify-start font-bold gap-2 text-slate-700 dark:text-slate-350">
+                  <Link href={`/dashboard/companies/${user.companyId}?tab=employees&filter=contract`}>
+                    📄 契約書更新管理 ({expiringContractEmployees.length}名対象)
+                  </Link>
+                </Button>
+                <Button size="sm" variant="outline" asChild className="w-full justify-start font-bold gap-2 text-slate-700 dark:text-slate-350">
+                  <Link href={`/dashboard/companies/${user.companyId}?tab=employees&filter=expired`}>
+                    🚨 アラート対象一覧 (期限切れ従業員)
+                  </Link>
+                </Button>
+              </div>
 
-                <Button asChild className="justify-start gap-3 h-12 text-sm font-bold bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm border-none">
-                  <a href="tel:03-1234-5678">
-                    <span className="text-lg">📞</span> 緊急連絡先へ電話
-                  </a>
-                </Button>
+              <div className="pt-4 border-t space-y-2">
+                <span className="text-[10px] font-black text-slate-400 block mb-1">📑 各種PDFレポート出力</span>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <Button size="sm" variant="outline" onClick={downloadMonthlyComplianceReport} disabled={isExporting !== null} className="text-[10px] h-8 justify-center gap-1 font-bold">
+                    {isExporting === "compliance" ? <RefreshCw className="h-3 w-3 animate-spin" /> : "月次レポ"}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={downloadVisaExpirySchedule} disabled={isExporting !== null} className="text-[10px] h-8 justify-center gap-1 font-bold">
+                    {isExporting === "visa" ? <RefreshCw className="h-3 w-3 animate-spin" /> : "予定表"}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={downloadMissingDocumentsList} disabled={isExporting !== null} className="text-[10px] h-8 justify-center gap-1 font-bold">
+                    {isExporting === "missing" ? <RefreshCw className="h-3 w-3 animate-spin" /> : "不足者"}
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
+
+          {/* 4. 翻訳・通訳・相談 */}
+          <Card className="hover:shadow-lg transition-all border border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-xl overflow-hidden flex flex-col justify-between">
+            <CardHeader className="bg-gradient-to-r from-blue-50/50 to-indigo-50/10 dark:from-zinc-900 dark:to-zinc-900/50 p-6 border-b">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-amber-100 dark:bg-amber-900 rounded-lg text-amber-700 dark:text-amber-200 shrink-0">
+                  <RefreshCw className="h-5.5 w-5.5" />
+                </div>
+                <div>
+                  <CardTitle className="text-base font-black text-slate-800 dark:text-slate-100">4. 翻訳・通訳・相談</CardTitle>
+                  <CardDescription className="text-xs mt-1">各種翻訳・通訳対応や専門家への相談依頼。</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4 flex-1 flex flex-col justify-between">
+              <div className="grid grid-cols-2 gap-2">
+                <Button size="sm" onClick={() => setIsTranslationModalOpen(true)} className="bg-[#1A3A7B] text-white hover:bg-[#1A3A7B]/90 font-bold gap-1.5 text-xs h-9">
+                  📝 翻訳依頼
+                </Button>
+                <Button size="sm" onClick={() => setIsInterpretationModalOpen(true)} className="bg-[#2B59C3] text-white hover:bg-[#2B59C3]/90 font-bold gap-1.5 text-xs h-9">
+                  🗣️ 通訳依頼
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <Button size="sm" variant="outline" asChild className="text-[11px] font-bold h-8">
+                  <a href="mailto:support@maworkjp.com?subject=ポータルからの相談&body=ご相談内容をご記入ください：">
+                    ✉️ メール相談
+                  </a>
+                </Button>
+                <Button size="sm" variant="outline" asChild className="text-[11px] font-bold h-8 border-emerald-500 text-emerald-700 hover:bg-emerald-50">
+                  <a href="https://line.me" target="_blank" rel="noopener noreferrer">
+                    💬 LINE相談
+                  </a>
+                </Button>
+              </div>
+
+              <div className="pt-4 border-t">
+                <span className="text-[10px] font-black text-slate-400 block mb-1.5">📋 最近の依頼履歴 (最新3件)</span>
+                {requestsList.length === 0 ? (
+                  <span className="text-[10px] text-slate-400 block">依頼履歴はまだありません。</span>
+                ) : (
+                  <div className="space-y-1 max-h-[85px] overflow-y-auto">
+                    {requestsList.slice(0, 3).map((req: any) => (
+                      <div key={req.id} className="flex justify-between items-center text-[10px] bg-slate-50 dark:bg-zinc-800 p-1.5 rounded border border-slate-100">
+                        <span className="font-bold truncate max-w-[150px]">
+                          {req.type === "translation" && "📝 翻訳"}
+                          {req.type === "interpretation" && "🗣️ 通訳"}
+                          {req.type === "option" && `⚙️ ${OPTIONS_LIST.find(o => o.key === req.optionKey)?.name || req.optionKey}`}
+                          {req.type === "upgrade" && "⭐ プラン変更"}
+                        </span>
+                        <span className="text-slate-500 font-semibold">{req.status === "pending" ? "⏳ 申請中" : "✓ 完了"}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 5. 雇用契約サポート */}
+          <Card className="hover:shadow-lg transition-all border border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-xl overflow-hidden flex flex-col justify-between">
+            <CardHeader className="bg-gradient-to-r from-blue-50/50 to-indigo-50/10 dark:from-zinc-900 dark:to-zinc-900/50 p-6 border-b">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-violet-100 dark:bg-violet-900 rounded-lg text-violet-700 dark:text-violet-200 shrink-0">
+                  <FileText className="h-5.5 w-5.5" />
+                </div>
+                <div>
+                  <CardTitle className="text-base font-black text-slate-800 dark:text-slate-100">5. 雇用契約サポート</CardTitle>
+                  <CardDescription className="text-xs mt-1">雇用契約書等の多言語書類作成や契約確認の依頼。</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6 space-y-2 flex-1 flex flex-col justify-end">
+              <Button size="sm" variant="outline" onClick={() => {
+                const opt = OPTIONS_LIST.find(o => o.key === "employment_contract_draft");
+                if (opt) { setSelectedOption(opt); setIsOptionModalOpen(true); }
+              }} className="w-full justify-start font-bold gap-2 text-slate-700 dark:text-slate-350 text-xs">
+                📄 雇用契約書作成依頼
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => {
+                const opt = OPTIONS_LIST.find(o => o.key === "labor_conditions_draft");
+                if (opt) { setSelectedOption(opt); setIsOptionModalOpen(true); }
+              }} className="w-full justify-start font-bold gap-2 text-slate-700 dark:text-slate-350 text-xs">
+                📄 労働条件通知書作成依頼
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => {
+                const opt = OPTIONS_LIST.find(o => o.key === "contract_audit");
+                if (opt) { setSelectedOption(opt); setIsOptionModalOpen(true); }
+              }} className="w-full justify-start font-bold gap-2 text-slate-700 dark:text-slate-350 text-xs">
+                🔍 契約内容整合性確認依頼
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* 6. 法令・安全教育 */}
+          <Card className="hover:shadow-lg transition-all border border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-xl overflow-hidden flex flex-col justify-between">
+            <CardHeader className="bg-gradient-to-r from-blue-50/50 to-indigo-50/10 dark:from-zinc-900 dark:to-zinc-900/50 p-6 border-b">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-rose-100 dark:bg-rose-900 rounded-lg text-rose-700 dark:text-rose-200 shrink-0">
+                  <ShieldCheck className="h-5.5 w-5.5" />
+                </div>
+                <div>
+                  <CardTitle className="text-base font-black text-slate-800 dark:text-slate-100">6. 法令・安全教育</CardTitle>
+                  <CardDescription className="text-xs mt-1">外国人労働者向けの多言語安全教育と修了証発行。</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6 space-y-2 flex-1 flex flex-col justify-end">
+              <Button size="sm" variant="outline" onClick={() => {
+                const opt = OPTIONS_LIST.find(o => o.key === "safety_education");
+                if (opt) { setSelectedOption(opt); setIsOptionModalOpen(true); }
+              }} className="w-full justify-start font-bold gap-2 text-slate-700 dark:text-slate-350 text-xs">
+                🏫 多言語安全教育（講習申請）
+              </Button>
+              <Button size="sm" variant="outline" className="w-full justify-start font-bold gap-2 text-slate-700 dark:text-slate-350 text-xs pointer-events-none opacity-60">
+                ✏️ 理解度チェック（安全教育修了テスト）
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => {
+                const opt = OPTIONS_LIST.find(o => o.key === "certificate_only");
+                if (opt) { setSelectedOption(opt); setIsOptionModalOpen(true); }
+              }} className="w-full justify-start font-bold gap-2 text-slate-700 dark:text-slate-350 text-xs">
+                🎓 修了証PDF発行のみ依頼
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* 7. 現場労務対応 */}
+          <Card className="hover:shadow-lg transition-all border border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-xl overflow-hidden flex flex-col justify-between">
+            <CardHeader className="bg-gradient-to-r from-blue-50/50 to-indigo-50/10 dark:from-zinc-900 dark:to-zinc-900/50 p-6 border-b">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-emerald-100 dark:bg-emerald-900 rounded-lg text-emerald-700 dark:text-emerald-250 shrink-0">
+                  <Scale className="h-5.5 w-5.5" />
+                </div>
+                <div>
+                  <CardTitle className="text-base font-black text-slate-800 dark:text-slate-100">7. 現場労務対応</CardTitle>
+                  <CardDescription className="text-xs mt-1">トラブル相談、面談の同席調整や報告書作成。</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6 space-y-2 flex-1 flex flex-col justify-end">
+              <Button size="sm" variant="outline" onClick={() => {
+                const opt = OPTIONS_LIST.find(o => o.key === "spot_consult");
+                if (opt) { setSelectedOption(opt); setIsOptionModalOpen(true); }
+              }} className="w-full justify-start font-bold gap-2 text-slate-700 dark:text-slate-350 text-xs">
+                ⚖️ 雇用トラブル・労務の緊急相談
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setIsInterpretationModalOpen(true)} className="w-full justify-start font-bold gap-2 text-slate-700 dark:text-slate-350 text-xs">
+                🗣️ 面談同席（専門スタッフ通訳）
+              </Button>
+              <Button size="sm" variant="outline" asChild className="w-full justify-start font-bold gap-2 text-slate-700 dark:text-slate-350 text-xs">
+                <Link href={`/dashboard/companies/${user.companyId}?tab=employees`}>
+                  📋 双方ヒアリング記録確認
+                </Link>
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => {
+                const opt = OPTIONS_LIST.find(o => o.key === "report_draft");
+                if (opt) { setSelectedOption(opt); setIsOptionModalOpen(true); }
+              }} className="w-full justify-start font-bold gap-2 text-slate-700 dark:text-slate-350 text-xs">
+                📝 労務対応ヒアリング報告書作成依頼
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* 8. 上位プラン専用 */}
+          {(() => {
+            const isHighTier = ["standard", "advance", "pro", "premium"].includes(company?.plan_type || "");
+            return (
+              <Card className="hover:shadow-lg transition-all border border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-xl overflow-hidden flex flex-col justify-between relative">
+                <CardHeader className="bg-gradient-to-r from-blue-50/50 to-indigo-50/10 dark:from-zinc-900 dark:to-zinc-900/50 p-6 border-b">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-purple-100 dark:bg-purple-900 rounded-lg text-purple-700 dark:text-purple-200 shrink-0">
+                      {isHighTier ? <Star className="h-5.5 w-5.5 text-amber-500 fill-amber-500 animate-pulse" /> : <Lock className="h-5.5 w-5.5" />}
+                    </div>
+                    <div>
+                      <CardTitle className="text-base font-black text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+                        8. 上位プラン専用
+                      </CardTitle>
+                      <CardDescription className="text-xs mt-1">未払い残業、適合性監査、定着度予測等の高度分析。</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-6 flex-1 flex flex-col justify-end relative">
+                  {!isHighTier && (
+                    <div className="absolute inset-0 bg-white/90 dark:bg-zinc-950/90 flex flex-col items-center justify-center p-4 text-center rounded-b-xl">
+                      <Lock className="h-7 w-7 text-[#1A3A7B] mb-2" />
+                      <span className="text-xs font-black text-slate-800 dark:text-slate-100">この機能は上位プラン専用です</span>
+                      <span className="text-[10px] text-slate-500 mt-1">スタンダードプラン以上への変更が必要です</span>
+                      <Button size="sm" onClick={() => setIsUpgradeModalOpen(true)} className="mt-3 text-[10px] h-8 bg-gradient-to-r from-[#1A3A7B] to-[#2B59C3] text-white hover:from-[#1A3A7B]/95 font-bold shadow active:scale-98">
+                        プランアップグレード申請
+                      </Button>
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <Button size="sm" variant="outline" onClick={() => setActiveAnalysisDetail("overtime")} className="w-full justify-between text-xs font-bold text-slate-700 dark:text-slate-350">
+                      <span>⏰ 未払い残業リスク分析</span>
+                      <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setActiveAnalysisDetail("risk")} className="w-full justify-between text-xs font-bold text-slate-700 dark:text-slate-350">
+                      <span>🛡️ 外国人適合性・労務リスク診断</span>
+                      <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setActiveAnalysisDetail("retention")} className="w-full justify-between text-xs font-bold text-slate-700 dark:text-slate-350">
+                      <span>📈 離職予測・エンゲージメント推移</span>
+                      <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setActiveAnalysisDetail("kpi")} className="w-full justify-between text-xs font-bold text-slate-700 dark:text-slate-350">
+                      <span>📊 雇用管理KPI成熟度監査</span>
+                      <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })()}
+
         </div>
+
+        {/* --- Dialog Modals Restore Section --- */}
+        
+        {/* 1. Options / Request Form Modal */}
+        <Dialog open={isOptionModalOpen} onOpenChange={setIsOptionModalOpen}>
+          <DialogContent className="max-w-md bg-background border rounded-lg shadow-lg">
+            <DialogHeader>
+              <DialogTitle className="text-lg font-bold text-primary flex items-center gap-1.5">
+                <FileText className="h-5 w-5 text-indigo-500" />
+                オプションサービスの申請
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                以下の追加サービスの申請を完了します。
+              </DialogDescription>
+            </DialogHeader>
+
+            <form onSubmit={handleOptionSubmit} className="space-y-4 py-2 text-xs">
+              <div className="p-4 bg-muted/30 border rounded-xl space-y-2">
+                <div className="flex justify-between font-bold">
+                  <span>サービス名:</span>
+                  <span className="text-slate-800">{selectedOption?.name}</span>
+                </div>
+                <div className="flex justify-between font-bold">
+                  <span>費用目安:</span>
+                  <span className="text-indigo-600">{selectedOption?.price} 円 (税別)</span>
+                </div>
+                <hr className="my-1.5" />
+                <p className="text-[11px] text-slate-500 leading-relaxed font-semibold">
+                  {selectedOption?.desc}
+                </p>
+              </div>
+
+              <div className="flex items-center space-x-2 border p-3 rounded-lg bg-amber-50/20">
+                <input 
+                  type="checkbox" 
+                  id="optionFeeCheck" 
+                  checked={isOptionFeeChecked}
+                  onChange={(e) => setIsOptionFeeChecked(e.target.checked)}
+                  className="rounded text-primary h-3.5 w-3.5 border-slate-300"
+                  required
+                />
+                <Label htmlFor="optionFeeCheck" className="font-bold text-[11px] text-slate-600 leading-none cursor-pointer">
+                  上記費用（または個別見積り）および利用規約に同意する
+                </Label>
+              </div>
+
+              <div className="flex items-center space-x-2 border p-3 rounded-lg bg-emerald-50/20">
+                <input 
+                  type="checkbox" 
+                  id="optionConsentCheck" 
+                  checked={isOptionConsentChecked}
+                  onChange={(e) => setIsOptionConsentChecked(e.target.checked)}
+                  className="rounded text-primary h-3.5 w-3.5 border-slate-300"
+                />
+                <Label htmlFor="optionConsentCheck" className="font-bold text-[11px] text-slate-600 leading-none cursor-pointer">
+                  (推奨) 専門スタッフによるヒアリングと自動進行の許可
+                </Label>
+              </div>
+
+              <DialogFooter className="pt-4 border-t flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => { setIsOptionModalOpen(false); setSelectedOption(null); }}>
+                  キャンセル
+                </Button>
+                <Button type="submit" disabled={!isOptionFeeChecked || isSubmittingRequest} className="bg-[#1A3A7B] text-white hover:bg-[#1A3A7B]/95 font-bold">
+                  {isSubmittingRequest ? <RefreshCw className="h-4 w-4 animate-spin" /> : "申請を確定する"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* 2. Translation Request Modal */}
+        <Dialog open={isTranslationModalOpen} onOpenChange={setIsTranslationModalOpen}>
+          <DialogContent className="max-w-lg bg-background border rounded-lg shadow-lg">
+            <DialogHeader>
+              <DialogTitle className="text-lg font-bold text-primary flex items-center gap-1.5">
+                <RefreshCw className="h-5 w-5 text-indigo-500" />
+                多言語翻訳のご依頼
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                就業規則、各種契約、社内通知などの翻訳依頼を送信できます。
+              </DialogDescription>
+            </DialogHeader>
+
+            <form onSubmit={handleTranslationSubmit} className="space-y-4 py-2 text-xs">
+              <div className="space-y-1.5">
+                <Label htmlFor="translationText" className="font-bold text-slate-500">対象テキスト (または書類概要)</Label>
+                <Textarea 
+                  id="translationText"
+                  placeholder="翻訳を希望する文面をここに貼り付けるか、書類の概要をご記入ください。"
+                  value={translationText}
+                  onChange={(e) => setTranslationText(e.target.value)}
+                  className="min-h-[100px]"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="translationLang" className="font-bold text-slate-500">翻訳先言語</Label>
+                  <Select value={translationLang} onValueChange={setTranslationLang}>
+                    <SelectTrigger id="translationLang">
+                      <SelectValue placeholder="言語を選択" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ベトナム語">ベトナム語</SelectItem>
+                      <SelectItem value="インドネシア語">インドネシア語</SelectItem>
+                      <SelectItem value="フィリピン語">フィリピン語（タガログ）</SelectItem>
+                      <SelectItem value="ネパール語">ネパール語</SelectItem>
+                      <SelectItem value="英語">英語</SelectItem>
+                      <SelectItem value="中国語">中国語</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="translationPages" className="font-bold text-slate-500">枚数目安 (A4)</Label>
+                  <Input 
+                    id="translationPages"
+                    type="number"
+                    min={1}
+                    value={translationPages}
+                    onChange={(e) => setTranslationPages(Math.max(1, parseInt(e.target.value) || 1))}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="translationDate" className="font-bold text-slate-500">希望納期 <span className="text-destructive">*</span></Label>
+                  <Input 
+                    id="translationDate"
+                    type="date"
+                    value={translationDate}
+                    onChange={(e) => setTranslationDate(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="p-3.5 bg-amber-500/10 border border-amber-500/25 rounded-xl text-[#1A3A7B] leading-relaxed">
+                <p className="font-semibold text-[11px] flex gap-1 items-start">
+                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                  ※翻訳は1週間前（7日前）までにご依頼ください。期限未満の場合は緊急対応料金（3日以内: +30%, 翌日: +50%, 当日: +100%）が発生します（プレミアムプランの無料枠分にも適用されます）。
+                </p>
+              </div>
+
+              {/* Dynamic Fee Simulators Display */}
+              {(() => {
+                const fees = calculateTranslationFees();
+                const isEmergency = fees.surcharge > 0;
+                return (
+                  <div className="p-4 bg-muted/40 border rounded-xl space-y-2 font-bold text-xs">
+                    <div className="flex justify-between">
+                      <span>基本料金 (8,000円/枚):</span>
+                      <span className={company?.plan_type === "premium" && fees.base === 0 ? "line-through text-slate-400" : ""}>
+                        {(translationPages * 8000).toLocaleString()}円
+                      </span>
+                    </div>
+                    {company?.plan_type === "premium" && (
+                      <div className="flex justify-between text-emerald-700">
+                        <span>プレミアム特典（基本料免除）:</span>
+                        <span>-{(translationPages * 8000).toLocaleString()}円</span>
+                      </div>
+                    )}
+                    {isEmergency && (
+                      <div className="flex justify-between text-red-650">
+                        <span>緊急対応料金 ({Math.round(fees.rate * 100)}%加算):</span>
+                        <span>+{fees.surcharge.toLocaleString()}円</span>
+                      </div>
+                    )}
+                    <hr />
+                    <div className="flex justify-between font-black text-sm text-primary">
+                      <span>お支払見積り合計 (税別):</span>
+                      <span className="text-[#1A3A7B] text-base">{fees.total.toLocaleString()}円</span>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              <DialogFooter className="pt-4 border-t flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setIsTranslationModalOpen(false)}>
+                  キャンセル
+                </Button>
+                <Button type="submit" disabled={isSubmittingRequest} className="bg-[#1A3A7B] text-white hover:bg-[#1A3A7B]/95 font-bold">
+                  {isSubmittingRequest ? <RefreshCw className="h-4 w-4 animate-spin" /> : "翻訳を依頼する"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* 3. Interpretation Booking Modal */}
+        <Dialog open={isInterpretationModalOpen} onOpenChange={setIsInterpretationModalOpen}>
+          <DialogContent className="max-w-lg bg-background border rounded-lg shadow-lg">
+            <DialogHeader>
+              <DialogTitle className="text-lg font-bold text-primary flex items-center gap-1.5">
+                <Users className="h-5 w-5 text-indigo-500" />
+                通訳対応の予約申請
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                通訳希望の予定日、時間、対応内容（面談、安全指導等）を入力してください。
+              </DialogDescription>
+            </DialogHeader>
+
+            <form onSubmit={handleInterpretationSubmit} className="space-y-4 py-2 text-xs">
+              <div className="space-y-1.5">
+                <Label htmlFor="interpretationDesc" className="font-bold text-slate-500">通訳内容の説明・目的</Label>
+                <Textarea 
+                  id="interpretationDesc"
+                  placeholder="外国人スタッフ向けの現場安全教育時通訳、個別雇用条件説明面談など"
+                  value={interpretationDesc}
+                  onChange={(e) => setInterpretationDesc(e.target.value)}
+                  className="min-h-[80px]"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="interpretationHours" className="font-bold text-slate-500">予定時間（時間）</Label>
+                  <Input 
+                    id="interpretationHours"
+                    type="number"
+                    min={1}
+                    value={interpretationHours}
+                    onChange={(e) => setInterpretationHours(Math.max(1, parseInt(e.target.value) || 1))}
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="interpretationDate" className="font-bold text-slate-500">通訳実施予定日 <span className="text-destructive">*</span></Label>
+                  <Input 
+                    id="interpretationDate"
+                    type="date"
+                    value={interpretationDate}
+                    onChange={(e) => setInterpretationDate(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Dynamic Fee Simulators Display */}
+              {(() => {
+                const fees = calculateInterpretationFees();
+                const isEmergency = fees.surcharge > 0;
+                return (
+                  <div className="p-4 bg-muted/40 border rounded-xl space-y-2 font-bold text-xs">
+                    <div className="flex justify-between">
+                      <span>基本通訳料金 (10,000円/時):</span>
+                      <span>{(interpretationHours * 10000).toLocaleString()}円</span>
+                    </div>
+                    {isEmergency && (
+                      <div className="flex justify-between text-red-600">
+                        <span>緊急対応料金 ({Math.round(fees.rate * 100)}%加算):</span>
+                        <span>+{fees.surcharge.toLocaleString()}円</span>
+                      </div>
+                    )}
+                    <hr />
+                    <div className="flex justify-between font-black text-sm text-primary">
+                      <span>お支払見積り合計 (税別):</span>
+                      <span className="text-[#1A3A7B] text-base">{fees.total.toLocaleString()}円</span>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              <DialogFooter className="pt-4 border-t flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setIsInterpretationModalOpen(false)}>
+                  キャンセル
+                </Button>
+                <Button type="submit" disabled={isSubmittingRequest} className="bg-[#1A3A7B] text-white hover:bg-[#1A3A7B]/95 font-bold">
+                  {isSubmittingRequest ? <RefreshCw className="h-4 w-4 animate-spin" /> : "通訳を予約する"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* 4. Plan Upgrade Application Modal */}
+        <Dialog open={isUpgradeModalOpen} onOpenChange={setIsUpgradeModalOpen}>
+          <DialogContent className="max-w-md bg-background border rounded-lg shadow-lg">
+            <DialogHeader>
+              <DialogTitle className="text-lg font-bold text-primary flex items-center gap-1.5">
+                <Award className="h-5 w-5 text-indigo-500" />
+                プランアップグレード申請
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                より上位のプランへ変更し、各種利用回数上限の拡大や、専用の高度分析機能を解放します。
+              </DialogDescription>
+            </DialogHeader>
+
+            <form onSubmit={handleUpgradeSubmit} className="space-y-4 py-2 text-xs">
+              <div className="space-y-1.5">
+                <Label htmlFor="upgradePlan" className="font-bold text-slate-500">変更先プラン</Label>
+                <Select value={selectedUpgradePlan} onValueChange={setSelectedUpgradePlan}>
+                  <SelectTrigger id="upgradePlan">
+                    <SelectValue placeholder="プランを選択" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(company?.plan_type || "entry") === "entry" && <SelectItem value="basic">ベーシック（月額69,800円）</SelectItem>}
+                    {["entry", "basic"].includes(company?.plan_type || "entry") && <SelectItem value="standard">スタンダード（月額98,000円）</SelectItem>}
+                    {["entry", "basic", "standard"].includes(company?.plan_type || "entry") && <SelectItem value="advance">アドバンス（月額148,000円）</SelectItem>}
+                    {["entry", "basic", "standard", "advance"].includes(company?.plan_type || "entry") && <SelectItem value="pro">プロ（月額198,000円）</SelectItem>}
+                    {(company?.plan_type || "entry") !== "premium" && <SelectItem value="premium">プレミアム（月額298,000円）</SelectItem>}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 text-[#1A3A7B] dark:text-indigo-200 rounded-xl leading-relaxed">
+                アップグレードを行うことで、各機能制限が即時解除されます。差額分の月額保守費用は、次回請求時に調整されます。
+              </div>
+
+              <DialogFooter className="pt-4 border-t flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setIsUpgradeModalOpen(false)}>
+                  キャンセル
+                </Button>
+                <Button type="submit" disabled={!selectedUpgradePlan || isSubmittingRequest} className="bg-[#1A3A7B] text-white hover:bg-[#1A3A7B]/95 font-bold">
+                  {isSubmittingRequest ? <RefreshCw className="h-4 w-4 animate-spin" /> : "アップグレード申請"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* 5. Detailed Interactive Analysis Reports Modal */}
+        <Dialog open={activeAnalysisDetail !== null} onOpenChange={() => setActiveAnalysisDetail(null)}>
+          <DialogContent className="max-w-3xl bg-background border rounded-lg shadow-lg">
+            <DialogHeader>
+              <DialogTitle className="text-lg font-bold text-primary flex items-center gap-2">
+                <BarChart2 className="h-5.5 w-5.5 text-indigo-500" />
+                {activeAnalysisDetail === "overtime" && "未払い残業リスク分析レポート"}
+                {activeAnalysisDetail === "risk" && "外国人雇用適合性・労務リスク診断"}
+                {activeAnalysisDetail === "retention" && "離職予測・エンゲージメント推移"}
+                {activeAnalysisDetail === "kpi" && "雇用管理KPI成熟度・満足度監査"}
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                当月集計された御社専用の詳細データです。
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="py-4 space-y-4 text-xs leading-relaxed max-h-[500px] overflow-y-auto">
+              {activeAnalysisDetail === "overtime" && (
+                <div className="space-y-4">
+                  <div className="p-4 bg-amber-500/10 border border-amber-500/25 text-amber-900 dark:text-amber-250 rounded-xl">
+                    <strong>⚠️ 残業時間監査警告:</strong> 製造部所属の2名において、今月の時間外労働時間が36協定の特別条項限度（単月80時間）の80%を超える予測値（68時間）を検知しました。シフトの再調整を推奨します。
+                  </div>
+                  <table className="w-full text-left border border-collapse text-slate-700 dark:text-slate-350">
+                    <thead>
+                      <tr className="bg-slate-100 dark:bg-zinc-800 font-bold border-b">
+                        <th className="p-2.5">部署</th>
+                        <th className="p-2.5">平均残業時間</th>
+                        <th className="p-2.5">労基違反リスク</th>
+                        <th className="p-2.5">推奨改善アクション</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-b">
+                        <td className="p-2.5 font-bold">営業部</td>
+                        <td className="p-2.5">15.5時間</td>
+                        <td className="p-2.5 text-emerald-600 font-bold">低 (安全)</td>
+                        <td className="p-2.5">現状維持</td>
+                      </tr>
+                      <tr className="border-b">
+                        <td className="p-2.5 font-bold">製造部</td>
+                        <td className="p-2.5">48.2時間</td>
+                        <td className="p-2.5 text-red-650 font-bold">高 (注意)</td>
+                        <td className="p-2.5 font-semibold text-red-700 dark:text-red-400">【要介入】シフト再設計、業務の平準化</td>
+                      </tr>
+                      <tr className="border-b">
+                        <td className="p-2.5 font-bold">建設部</td>
+                        <td className="p-2.5">32.0時間</td>
+                        <td className="p-2.5 text-amber-600 font-bold">中 (観察)</td>
+                        <td className="p-2.5">時間外労働ログのデイリー監視</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {activeAnalysisDetail === "risk" && (
+                <div className="space-y-4">
+                  <div className="p-4 bg-emerald-500/10 border border-emerald-500/25 text-emerald-900 dark:text-emerald-250 rounded-xl">
+                    <strong>✓ 適合性チェック完了:</strong> 法定帳票類および特定技能関係提出書類の整合性スコアは <strong>94%</strong> です。入管法・労基法に抵触する即時重大リスクは検知されませんでした。
+                  </div>
+                  <div className="space-y-2">
+                    <h5 className="font-bold text-slate-800 dark:text-white">【指摘・推奨改善項目】</h5>
+                    <ul className="list-disc pl-5 space-y-1.5 text-slate-655 dark:text-slate-400">
+                      <li>特定技能スタッフ1名の転居後の住民票写しおよび居住地変更届出の回収が未完了です。（中リスク。2週間以内に回収完了してください）</li>
+                      <li>労働条件通知書の一部項目（賃金の締め・支払日）が就業規則の改定内容と不整合になっています。（低リスク。次回更新時に自動修正版を反映予定）</li>
+                    </ul>
+                  </div>
+                </div>
+              )}
+
+              {activeAnalysisDetail === "retention" && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between bg-slate-50 dark:bg-zinc-900 p-4 border rounded-xl flex-wrap gap-2">
+                    <div>
+                      <span className="text-slate-400 font-bold text-[10px] block">当月外国人スタッフ定着率</span>
+                      <span className="text-2xl font-black text-[#1A3A7B] dark:text-[#5C85D3]">97.2%</span>
+                      <span className="text-xs text-emerald-600 font-bold ml-2">(前月比 +0.5%)</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-slate-400 font-bold text-[10px] block">離職リスク注意者</span>
+                      <span className="text-xl font-bold text-amber-600">2名 (中リスク)</span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <h5 className="font-bold text-slate-800 dark:text-white">離職リスク低減ロードマップ</h5>
+                    <p className="text-slate-655 dark:text-slate-400">
+                      中リスクと判定されたスタッフは、日本語能力試験に向けた学習進捗の遅れ、および宿舎変更に伴う一時的な環境不満が主な要因です。提携の多言語通訳スタッフによる個別面談時にメンタルケアを実施します。
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {activeAnalysisDetail === "kpi" && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 border rounded-xl text-center space-y-1">
+                      <span className="text-[10px] text-slate-400 block font-bold">雇用管理KPI総合スコア</span>
+                      <span className="text-3xl font-black text-indigo-750 dark:text-indigo-400">88 / 100</span>
+                    </div>
+                    <div className="p-4 border rounded-xl text-center space-y-1">
+                      <span className="text-[10px] text-slate-400 block font-bold">教育プログラム完了率</span>
+                      <span className="text-3xl font-black text-emerald-700">92%</span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <h5 className="font-bold text-slate-800 dark:text-white">主要評価項目</h5>
+                    <div className="space-y-1.5 text-slate-655 dark:text-slate-400">
+                      <div className="flex justify-between">
+                        <span>在留カード期限管理更新の適時性:</span>
+                        <span className="font-bold text-emerald-600">S (100%)</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>多言語安全教育講習受講状況:</span>
+                        <span className="font-bold text-emerald-600">A (92%)</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>労働条件通知の不満把握適時性:</span>
+                        <span className="font-bold text-amber-600">B (84%)</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <DialogFooter className="pt-2 border-t mt-4">
+              <Button type="button" onClick={() => setActiveAnalysisDetail(null)} className="bg-[#1A3A7B] text-white hover:bg-[#1A3A7B]/95 font-bold">
+                閉じる
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
       </div>
     );
   }
