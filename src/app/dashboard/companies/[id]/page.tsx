@@ -1392,34 +1392,9 @@ export default function CompanyDetailPage() {
 
   if (user?.role === "company") {
     const planInfo = getPlanDetails(company.plan_type || company.plan || "entry");
-    const isExpiringWithin3Months = (dateStr: string | null | undefined): boolean => {
-      if (!dateStr) return false;
-      const now = new Date();
-      const threeMonthsLater = new Date();
-      threeMonthsLater.setDate(now.getDate() + 90);
-      const d = new Date(dateStr.replace(/\//g, "-"));
-      return !isNaN(d.getTime()) && d >= now && d <= threeMonthsLater;
-    };
-
-    const getContractEndDateStr = (period: string | null | undefined): string => {
-      if (!period) return "未設定";
-      const cleaned = period.trim();
-      if (cleaned.includes("~")) {
-        const parts = cleaned.split("~");
-        return parts[parts.length - 1].trim();
-      }
-      return cleaned;
-    };
-
-    const expiringEmployees = employees.filter(emp => {
-      const isVisaExpiring = isExpiringWithin3Months(emp.expirationDate);
-      const contractEnd = getContractEndDateStr(emp.contractPeriod);
-      const isContractExpiring = contractEnd !== "未設定" && isExpiringWithin3Months(contractEnd);
-      return isVisaExpiring || isContractExpiring;
-    });
 
     return (
-      <div className="space-y-8 max-w-5xl mx-auto font-sans">
+      <div className="space-y-8 max-w-6xl mx-auto font-sans">
         {/* Top Header */}
         <div className="flex items-center justify-between border-b pb-4">
           <div className="flex items-center gap-3">
@@ -1436,7 +1411,7 @@ export default function CompanyDetailPage() {
                 </span>
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
-                自社の契約状況および登録従業員情報を一元管理しています。
+                自社の基本情報およびご契約状況を管理する画面です。
               </p>
             </div>
           </div>
@@ -1445,351 +1420,345 @@ export default function CompanyDetailPage() {
           </Button>
         </div>
 
-        {/* Section 1: Expiry & Alerts List (Top) */}
-        <Card className="border border-border/80 shadow-md">
-          <CardHeader className="bg-red-500/5 dark:bg-red-950/10 pb-4 border-b border-muted">
-            <CardTitle className="text-base font-bold text-red-800 dark:text-red-300 flex items-center gap-2">
-              <ShieldAlert className="h-5 w-5 text-red-600 animate-pulse" />
-              近日中に満了を迎える従業員（更新・アラート対象）
-            </CardTitle>
-            <CardDescription className="text-xs">
-              在留資格期限または雇用契約期限が3ヶ月以内に満了する従業員です。優先的な対応をお願いします。
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-6">
-            {expiringEmployees.length === 0 ? (
-              <div className="py-6 text-center text-sm text-muted-foreground flex flex-col items-center justify-center gap-2">
-                <Check className="h-8 w-8 text-emerald-600 animate-bounce" />
-                現在、3ヶ月以内に期限を迎える対象の従業員はいません。非常に良好な状態です。
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {expiringEmployees.map((emp) => {
-                  const isVisaExp = isExpiringWithin3Months(emp.expirationDate);
-                  const contractEnd = getContractEndDateStr(emp.contractPeriod);
-                  const isContractExp = contractEnd !== "未設定" && isExpiringWithin3Months(contractEnd);
-                  return (
-                    <div key={emp.id} className="p-4 rounded-xl border border-red-200 bg-red-500/5 flex flex-col justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-9 w-9 border">
-                          <AvatarFallback className="font-bold text-xs bg-red-100 text-red-700">{emp.name.substring(0, 2).toUpperCase()}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <h4 className="font-bold text-sm text-primary">{emp.name}</h4>
-                          <p className="text-xs text-muted-foreground">国籍: {emp.nationality} / 在留資格: {emp.statusOfResidence}</p>
-                        </div>
-                      </div>
-                      <div className="space-y-1.5 pt-1 border-t text-xs">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground font-semibold">在留期限満了日:</span>
-                          <span className={`font-mono font-bold ${isVisaExp ? "text-red-600 underline" : "text-primary"}`}>{emp.expirationDate}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground font-semibold">雇用契約満了日:</span>
-                          <span className={`font-mono font-bold ${isContractExp ? "text-red-600 underline" : "text-primary"}`}>{contractEnd}</span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Section 2 & 3 Grid: Company Profile & Expert Network */}
+        {/* 2-Column Responsive Layout (Left 1/3, Right 2/3) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Profile Card */}
-          <Card className="lg:col-span-1 shadow-sm border border-border">
-            <CardHeader className="bg-muted/15 pb-4 border-b">
-              <CardTitle className="text-sm font-bold flex items-center gap-1.5 text-primary">
-                <Building className="h-4 w-4 text-[#1A3A7B]" /> 自社プロフィール
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-5 space-y-4 text-sm leading-relaxed">
-              <div className="space-y-1">
-                <Label className="text-xs font-bold text-muted-foreground">企業名</Label>
-                <p className="font-semibold text-primary">{company.name}</p>
-              </div>
-              <Separator />
-              <div className="space-y-1">
-                <Label className="text-xs font-bold text-muted-foreground">住所</Label>
-                <p className="font-semibold text-primary">{company.address || "未設定"}</p>
-              </div>
-              <Separator />
-              <div className="space-y-1">
-                <Label className="text-xs font-bold text-muted-foreground">電話番号</Label>
-                <p className="font-semibold text-primary">{company.contactPhone || "未設定"}</p>
-              </div>
-              <Separator />
-              <div className="space-y-1">
-                <Label className="text-xs font-bold text-muted-foreground">窓口担当者</Label>
-                <p className="font-semibold text-primary">{company.contactName}</p>
-                <p className="text-xs text-muted-foreground">{company.contactEmail}</p>
-              </div>
-              <Separator />
-              <div className="space-y-1">
-                <Label className="text-xs font-bold text-muted-foreground">業種</Label>
-                <p className="font-semibold text-primary">{company.industry}</p>
-              </div>
-              <Separator />
-              <div className="space-y-1">
-                <Label className="text-xs font-bold text-muted-foreground">契約プラン</Label>
-                <p className="font-semibold text-indigo-700">{planInfo.name}</p>
-              </div>
-            </CardContent>
-          </Card>
+          
+          {/* Left Column (1/3 width on desktop) */}
+          <div className="lg:col-span-1 space-y-6">
+            {/* 1. 自社プロフィール */}
+            <Card className="shadow-sm border border-border bg-white dark:bg-zinc-900">
+              <CardHeader className="bg-muted/15 pb-4 border-b">
+                <CardTitle className="text-sm font-bold flex items-center gap-1.5 text-primary">
+                  <Building className="h-4 w-4 text-[#1A3A7B]" /> 自社プロフィール
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-5 space-y-4 text-sm leading-relaxed">
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-muted-foreground">企業名</Label>
+                  <p className="font-semibold text-primary">{company.name}</p>
+                </div>
+                <Separator />
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-muted-foreground">住所</Label>
+                  <p className="font-semibold text-primary">{company.address || "未設定"}</p>
+                </div>
+                <Separator />
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-muted-foreground">電話番号</Label>
+                  <p className="font-semibold text-primary">{company.contactPhone || "未設定"}</p>
+                </div>
+                <Separator />
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-muted-foreground">窓口担当者</Label>
+                  <p className="font-semibold text-primary">{company.contactName}</p>
+                  <p className="text-xs text-muted-foreground">{company.contactEmail}</p>
+                </div>
+                <Separator />
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-muted-foreground">業種</Label>
+                  <p className="font-semibold text-primary">{company.industry}</p>
+                </div>
+              </CardContent>
+            </Card>
 
-          {/* Expert Card */}
-          <Card className="lg:col-span-2 shadow-sm border border-border">
-            <CardHeader className="bg-muted/15 pb-4 border-b">
-              <CardTitle className="text-sm font-bold flex items-center gap-1.5 text-primary">
-                <Landmark className="h-4.5 w-4.5 text-indigo-600" />
-                外部専門家・顧問ネットワーク
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-5 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* 1. Scrivener */}
-                <div
-                  onClick={() => {
-                    window.location.href = `mailto:${company.scrivenerEmail || "sato@legal-office.com"}`;
-                  }}
-                  className="p-4 rounded-xl border bg-white/70 dark:bg-zinc-950/60 shadow-sm flex flex-col justify-between space-y-4 cursor-pointer hover:shadow-md hover:bg-white/95 dark:hover:bg-zinc-900/80 hover:-translate-y-0.5 transition-all duration-200"
-                >
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5 text-xs font-extrabold text-indigo-800 bg-indigo-50 dark:bg-indigo-950/40 px-2.5 py-1 rounded-md border border-indigo-100 dark:border-indigo-900 w-fit">
-                        <FileCheck className="h-3.5 w-3.5 shrink-0" />
-                        担当行政書士
+            {/* 2. 現在のプラン */}
+            <Card className={`shadow-sm border-2 ${planInfo.color}`}>
+              <CardHeader className="border-b border-muted/80 pb-4">
+                <div className="space-y-1">
+                  <span className="text-xs font-bold text-muted-foreground">現在のご契約プラン</span>
+                  <CardTitle className="text-sm font-extrabold text-primary flex items-center gap-1.5">
+                    <Sparkles className="h-4.5 w-4.5 text-indigo-600 animate-pulse" />
+                    {planInfo.name}
+                  </CardTitle>
+                </div>
+                <div className="mt-2">
+                  <p className="text-base font-black text-indigo-900 dark:text-indigo-200">{planInfo.price}</p>
+                  <p className="text-[10px] text-muted-foreground">※月額定額保守費用</p>
+                </div>
+              </CardHeader>
+              <CardContent className="p-5 space-y-4">
+                <h3 className="text-xs font-bold text-primary flex items-center gap-1">
+                  <Check className="h-3.5 w-3.5 text-indigo-500" />
+                  提供される主なサポート内容
+                </h3>
+                <div className="space-y-2.5 text-xs">
+                  {planInfo.features.map((feature: any, idx: number) => (
+                    <div key={idx} className="flex gap-2 items-start p-2.5 rounded-lg bg-white/70 dark:bg-zinc-950/60 border border-muted/50">
+                      <div className="p-0.5 bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 rounded-full shrink-0">
+                        <Check className="h-3 w-3" />
                       </div>
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                        <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+                      <div>
+                        <h4 className="font-bold text-primary">
+                          {typeof feature === "string" ? feature : feature.title}
+                        </h4>
+                        {typeof feature !== "string" && feature.desc && (
+                          <p className="text-[11px] text-muted-foreground mt-0.5">{feature.desc}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right Column (2/3 width on desktop) */}
+          <div className="lg:col-span-2 space-y-6">
+            
+            {/* 3. 外部専門家 */}
+            <Card className="shadow-sm border border-border">
+              <CardHeader className="bg-muted/15 pb-4 border-b">
+                <CardTitle className="text-sm font-bold flex items-center gap-1.5 text-primary">
+                  <Landmark className="h-4.5 w-4.5 text-indigo-600" />
+                  外部専門家・顧問ネットワーク
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  自社を担当している士業専門家窓口および緊急連絡先です。
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* 1. Scrivener */}
+                  <div
+                    onClick={() => {
+                      window.location.href = `mailto:${company.scrivenerEmail || "sato@legal-office.com"}`;
+                    }}
+                    className="p-4 rounded-xl border bg-white/70 dark:bg-zinc-950/60 shadow-sm flex flex-col justify-between space-y-4 cursor-pointer hover:shadow-md hover:bg-white/95 dark:hover:bg-zinc-900/80 hover:-translate-y-0.5 transition-all duration-200"
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 text-xs font-extrabold text-indigo-800 bg-indigo-50 dark:bg-indigo-950/40 px-2.5 py-1 rounded-md border border-indigo-100 dark:border-indigo-900 w-fit">
+                          <FileCheck className="h-3.5 w-3.5 shrink-0" />
+                          担当行政書士
+                        </div>
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                          <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+                          対応可能
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 pt-1">
+                        <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white shadow-sm shrink-0 bg-gradient-to-br from-blue-500 to-indigo-600 text-xs">
+                          行
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h4 className="text-sm font-black text-primary truncate">{company.scrivenerName || "佐藤 護"}</h4>
+                          <div className="text-[11px] text-muted-foreground break-all flex items-center gap-1 mt-0.5">
+                            <Mail className="h-3 w-3 shrink-0" />
+                            <span className="truncate">{company.scrivenerEmail || "sato@legal-office.com"}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 2. Labor Consultant */}
+                  <div
+                    onClick={() => {
+                      window.location.href = `mailto:${company.laborConsultantEmail || "suzuki@sr-office.com"}`;
+                    }}
+                    className="p-4 rounded-xl border bg-white/70 dark:bg-zinc-950/60 shadow-sm flex flex-col justify-between space-y-4 cursor-pointer hover:shadow-md hover:bg-white/95 dark:hover:bg-zinc-900/80 hover:-translate-y-0.5 transition-all duration-200"
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 text-xs font-extrabold text-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-md border border-emerald-100 dark:border-emerald-900 w-fit">
+                          <Users className="h-3.5 w-3.5 shrink-0" />
+                          担当社労士
+                        </div>
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-500 border border-blue-500/20">
+                          <span className="w-1 h-1 rounded-full bg-blue-500 animate-pulse" />
+                          オンライン
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 pt-1">
+                        <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white shadow-sm shrink-0 bg-gradient-to-br from-emerald-400 to-teal-600 text-xs">
+                          労
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h4 className="text-sm font-black text-primary truncate">{company.laborConsultantName || "鈴木 茂"}</h4>
+                          <div className="text-[11px] text-muted-foreground break-all flex items-center gap-1 mt-0.5">
+                            <Mail className="h-3 w-3 shrink-0" />
+                            <span className="truncate">{company.laborConsultantEmail || "suzuki@sr-office.com"}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 3. Attorney */}
+                  <div
+                    onClick={() => {
+                      window.location.href = `mailto:${company.attorneyEmail || "tanaka@law-office.com"}`;
+                    }}
+                    className="p-4 rounded-xl border bg-white/70 dark:bg-zinc-950/60 shadow-sm flex flex-col justify-between space-y-4 cursor-pointer hover:shadow-md hover:bg-white/95 dark:hover:bg-zinc-900/80 hover:-translate-y-0.5 transition-all duration-200"
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-amber-800 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1 rounded-md border border-amber-100 dark:border-amber-900 w-fit">
+                          <Scale className="h-3.5 w-3.5 shrink-0" />
+                          担当弁護士
+                        </div>
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                          <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+                          対応可能
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 pt-1">
+                        <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white shadow-sm shrink-0 bg-gradient-to-br from-amber-400 to-orange-600 text-xs">
+                          弁
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h4 className="text-sm font-black text-primary truncate">{company.attorneyName || "田中 誠"}</h4>
+                          <div className="text-[11px] text-muted-foreground break-all flex items-center gap-1 mt-0.5">
+                            <Mail className="h-3 w-3 shrink-0" />
+                            <span className="truncate">{company.attorneyEmail || "tanaka@law-office.com"}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 4. Translator & Interpreter Advisor */}
+                  <div
+                    onClick={() => {
+                      window.location.href = `mailto:info@mawork.jp`;
+                    }}
+                    className="p-4 rounded-xl border bg-white/70 dark:bg-zinc-950/60 shadow-sm flex flex-col justify-between space-y-4 cursor-pointer hover:shadow-md hover:bg-white/95 dark:hover:bg-zinc-900/80 hover:-translate-y-0.5 transition-all duration-200"
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 text-xs font-extrabold text-purple-800 bg-purple-50 dark:bg-purple-950/40 px-2.5 py-1 rounded-md border border-purple-100 dark:border-purple-900 w-fit">
+                          <Languages className="h-3.5 w-3.5 shrink-0" />
+                          翻訳通訳顧問
+                        </div>
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-500 border border-blue-500/20">
+                          <span className="w-1 h-1 rounded-full bg-blue-500 animate-pulse" />
+                          オンライン
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 pt-1">
+                        <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white shadow-sm shrink-0 bg-gradient-to-br from-purple-400 to-fuchsia-600 text-xs">
+                          訳
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h4 className="text-sm font-black text-primary truncate">MAWORKJP</h4>
+                          <div className="text-[11px] text-muted-foreground break-all flex items-center gap-1 mt-0.5">
+                            <Mail className="h-3 w-3 shrink-0" />
+                            <span className="truncate">info@mawork.jp</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 5. Emergency Contact */}
+                  <div
+                    onClick={() => {
+                      window.location.href = `tel:090-9854-6498`;
+                    }}
+                    className="p-4 rounded-xl border bg-white/70 dark:bg-zinc-950/60 shadow-sm flex flex-col justify-between space-y-4 cursor-pointer hover:shadow-md hover:bg-white/95 dark:hover:bg-zinc-900/80 hover:-translate-y-0.5 transition-all duration-200 sm:col-span-2"
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 text-xs font-extrabold text-red-800 bg-red-50 dark:bg-red-950/40 px-2.5 py-1 rounded-md border border-red-100 dark:border-red-900 w-fit">
+                          <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
+                          緊急連絡先
+                        </div>
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500/10 text-red-500 border border-red-500/20">
+                          <span className="w-1 h-1 rounded-full bg-red-500 animate-pulse" />
+                          24時間受付
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 pt-1">
+                        <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white shadow-sm shrink-0 bg-gradient-to-br from-red-500 to-rose-600 text-xs">
+                          緊
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h4 className="text-sm font-black text-primary leading-tight">ケガやトラブルの際の緊急ダイヤル</h4>
+                          <div className="text-[11.5px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                            <Phone className="h-3.5 w-3.5 shrink-0" />
+                            <span className="font-mono font-bold">📞 090-9854-6498</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 4. 採用ネットワーク */}
+            <Card className="shadow-sm border border-border bg-white dark:bg-zinc-900">
+              <CardHeader className="bg-muted/15 pb-4 border-b">
+                <CardTitle className="text-sm font-bold flex items-center gap-1.5 text-primary">
+                  <UserPlus className="h-4.5 w-4.5 text-indigo-600" />
+                  外部連携求人・採用ネットワーク
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  外国人採用を円滑に行うための、各種求人メディアおよび提携パートナー連携状況です。
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  
+                  {/* Partner 1 */}
+                  <div className="p-4 rounded-xl border bg-white/70 dark:bg-zinc-950/60 shadow-sm flex flex-col justify-between space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-black text-primary">MA WORK キャリア</h4>
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                        連携中
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-normal">
+                      特定技能・技術人文知識国際業務の求人票をベトナム、ネパール、インドネシアの現地求職者へダイレクト配信。
+                    </p>
+                  </div>
+
+                  {/* Partner 2 */}
+                  <div className="p-4 rounded-xl border bg-white/70 dark:bg-zinc-950/60 shadow-sm flex flex-col justify-between space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-black text-primary">Indeed 求人連携</h4>
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                        連携中
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-normal">
+                      Indeedの多言語検索エンジンに向けて、システムから外国人募集案件を自動インデックス連携。
+                    </p>
+                  </div>
+
+                  {/* Partner 3 */}
+                  <div className="p-4 rounded-xl border bg-white/70 dark:bg-zinc-950/60 shadow-sm flex flex-col justify-between space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-black text-primary">マイナビ転職 (グローバル)</h4>
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-500/10 text-slate-500 border border-slate-500/20">
+                        一時停止中
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-normal">
+                      国内在住の転職・キャリアアップ希望者向けのイベントおよび求人広告掲載サービスとのAPI連携。
+                    </p>
+                  </div>
+
+                  {/* Partner 4 */}
+                  <div className="p-4 rounded-xl border bg-white/70 dark:bg-zinc-950/60 shadow-sm flex flex-col justify-between space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-black text-primary">提携海外送り出し機関</h4>
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-500 border border-blue-500/20">
                         対応可能
                       </span>
                     </div>
-                    <div className="flex items-center gap-3 pt-1">
-                      <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white shadow-sm shrink-0 bg-gradient-to-br from-blue-500 to-indigo-600 text-xs">
-                        行
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <h4 className="text-sm font-black text-primary truncate">{company.scrivenerName || "佐藤 護"}</h4>
-                        <div className="text-[11px] text-muted-foreground break-all flex items-center gap-1 mt-0.5">
-                          <Mail className="h-3 w-3 shrink-0" />
-                          <span className="truncate">{company.scrivenerEmail || "sato@legal-office.com"}</span>
-                        </div>
-                      </div>
-                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-normal">
+                      ベトナム・ネパール・インドネシア・フィリピンの政府公認送り出し機関による現地事前研修プログラムとの提携。
+                    </p>
                   </div>
-                </div>
 
-                {/* 2. Labor Consultant */}
-                <div
-                  onClick={() => {
-                    window.location.href = `mailto:${company.laborConsultantEmail || "suzuki@sr-office.com"}`;
-                  }}
-                  className="p-4 rounded-xl border bg-white/70 dark:bg-zinc-950/60 shadow-sm flex flex-col justify-between space-y-4 cursor-pointer hover:shadow-md hover:bg-white/95 dark:hover:bg-zinc-900/80 hover:-translate-y-0.5 transition-all duration-200"
-                >
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5 text-xs font-extrabold text-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-md border border-emerald-100 dark:border-emerald-900 w-fit">
-                        <Users className="h-3.5 w-3.5 shrink-0" />
-                        担当社労士
-                      </div>
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-500 border border-blue-500/20">
-                        <span className="w-1 h-1 rounded-full bg-blue-500 animate-pulse" />
-                        オンライン
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3 pt-1">
-                      <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white shadow-sm shrink-0 bg-gradient-to-br from-emerald-400 to-teal-600 text-xs">
-                        労
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <h4 className="text-sm font-black text-primary truncate">{company.laborConsultantName || "鈴木 茂"}</h4>
-                        <div className="text-[11px] text-muted-foreground break-all flex items-center gap-1 mt-0.5">
-                          <Mail className="h-3 w-3 shrink-0" />
-                          <span className="truncate">{company.laborConsultantEmail || "suzuki@sr-office.com"}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
                 </div>
+              </CardContent>
+            </Card>
 
-                {/* 3. Attorney */}
-                <div
-                  onClick={() => {
-                    window.location.href = `mailto:${company.attorneyEmail || "tanaka@law-office.com"}`;
-                  }}
-                  className="p-4 rounded-xl border bg-white/70 dark:bg-zinc-950/60 shadow-sm flex flex-col justify-between space-y-4 cursor-pointer hover:shadow-md hover:bg-white/95 dark:hover:bg-zinc-900/80 hover:-translate-y-0.5 transition-all duration-200"
-                >
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-amber-800 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1 rounded-md border border-amber-100 dark:border-amber-900 w-fit">
-                        <Scale className="h-3.5 w-3.5 shrink-0" />
-                        担当弁護士
-                      </div>
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                        <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
-                        対応可能
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3 pt-1">
-                      <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white shadow-sm shrink-0 bg-gradient-to-br from-amber-400 to-orange-600 text-xs">
-                        弁
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <h4 className="text-sm font-black text-primary truncate">{company.attorneyName || "田中 誠"}</h4>
-                        <div className="text-[11px] text-muted-foreground break-all flex items-center gap-1 mt-0.5">
-                          <Mail className="h-3 w-3 shrink-0" />
-                          <span className="truncate">{company.attorneyEmail || "tanaka@law-office.com"}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+          </div>
 
-                {/* 4. Translator & Interpreter Advisor */}
-                <div
-                  onClick={() => {
-                    window.location.href = `mailto:info@mawork.jp`;
-                  }}
-                  className="p-4 rounded-xl border bg-white/70 dark:bg-zinc-950/60 shadow-sm flex flex-col justify-between space-y-4 cursor-pointer hover:shadow-md hover:bg-white/95 dark:hover:bg-zinc-900/80 hover:-translate-y-0.5 transition-all duration-200"
-                >
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5 text-xs font-extrabold text-purple-800 bg-purple-50 dark:bg-purple-950/40 px-2.5 py-1 rounded-md border border-purple-100 dark:border-purple-900 w-fit">
-                        <Languages className="h-3.5 w-3.5 shrink-0" />
-                        翻訳通訳顧問
-                      </div>
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-500 border border-blue-500/20">
-                        <span className="w-1 h-1 rounded-full bg-blue-500 animate-pulse" />
-                        オンライン
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3 pt-1">
-                      <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white shadow-sm shrink-0 bg-gradient-to-br from-purple-400 to-fuchsia-600 text-xs">
-                        訳
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <h4 className="text-sm font-black text-primary truncate">MAWORKJP</h4>
-                        <div className="text-[11px] text-muted-foreground break-all flex items-center gap-1 mt-0.5">
-                          <Mail className="h-3 w-3 shrink-0" />
-                          <span className="truncate">info@mawork.jp</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 5. Emergency Contact */}
-                <div
-                  onClick={() => {
-                    window.location.href = `tel:090-9854-6498`;
-                  }}
-                  className="p-4 rounded-xl border bg-white/70 dark:bg-zinc-950/60 shadow-sm flex flex-col justify-between space-y-4 cursor-pointer hover:shadow-md hover:bg-white/95 dark:hover:bg-zinc-900/80 hover:-translate-y-0.5 transition-all duration-200"
-                >
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5 text-xs font-extrabold text-red-800 bg-red-50 dark:bg-red-950/40 px-2.5 py-1 rounded-md border border-red-100 dark:border-red-900 w-fit">
-                        <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
-                        緊急連絡
-                      </div>
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500/10 text-red-500 border border-red-500/20">
-                        <span className="w-1 h-1 rounded-full bg-red-500 animate-pulse" />
-                        24時間受付
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3 pt-1">
-                      <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white shadow-sm shrink-0 bg-gradient-to-br from-red-500 to-rose-600 text-xs">
-                        緊
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <h4 className="text-sm font-black text-primary leading-tight">ケガやトラブルの際電話をする</h4>
-                        <div className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
-                          <Phone className="h-3.5 w-3.5 shrink-0" />
-                          <span className="font-mono">📞 090-9854-6498</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </div>
-
-        {/* Section 4: Employee List Table */}
-        <Card className="shadow-sm border border-border">
-          <CardHeader className="bg-muted/15 border-b pb-4">
-            <CardTitle className="text-base font-bold text-primary flex items-center gap-2">
-              <Users className="h-5 w-5 text-[#1A3A7B]" />
-              登録従業員一覧
-            </CardTitle>
-            <CardDescription className="text-xs">
-              在留カード満了日および雇用契約期間の管理テーブルです。
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-0">
-            {employees.length === 0 ? (
-              <div className="py-12 text-center text-muted-foreground">
-                登録されている従業員はいません。
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-sm">
-                  <thead>
-                    <tr className="border-b bg-muted/20 text-xs font-bold text-muted-foreground">
-                      <th className="p-4">氏名</th>
-                      <th className="p-4">国籍</th>
-                      <th className="p-4">在留資格</th>
-                      <th className="p-4">在留期限日</th>
-                      <th className="p-4">雇用契約期限</th>
-                      <th className="p-4">ステータス</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {employees.map((emp) => {
-                      let statusBadge = "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-250";
-                      let statusText = "有効";
-
-                      if (emp.status === "expiring_soon") {
-                        statusBadge = "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border-amber-250";
-                        statusText = "更新手続き中";
-                      } else if (emp.status === "expired") {
-                        statusBadge = "bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300 border-red-250";
-                        statusText = "期限切れ警告";
-                      } else if (emp.status === "resigned") {
-                        statusBadge = "bg-slate-100 text-slate-800 dark:bg-zinc-800 dark:text-zinc-300 border-slate-200";
-                        statusText = "退職・帰国";
-                      }
-
-                      const contractEnd = getContractEndDateStr(emp.contractPeriod);
-                      return (
-                        <tr key={emp.id} className="border-b hover:bg-muted/15 transition-colors font-medium">
-                          <td className="p-4 font-bold text-primary">{emp.name}</td>
-                          <td className="p-4 text-muted-foreground">{emp.nationality}</td>
-                          <td className="p-4">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-semibold bg-secondary text-secondary-foreground border">
-                              {emp.statusOfResidence}
-                            </span>
-                          </td>
-                          <td className="p-4 text-muted-foreground font-mono">{emp.expirationDate}</td>
-                          <td className="p-4 text-muted-foreground font-mono">{contractEnd}</td>
-                          <td className="p-4">
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold border ${statusBadge}`}>
-                              {statusText}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
       </div>
     );
   }
