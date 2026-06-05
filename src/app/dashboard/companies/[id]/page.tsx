@@ -35,6 +35,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import Link from "next/link";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -180,6 +181,28 @@ const getPlanDetails = (planName: string) => {
   }
 };
 
+const LineIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+    <path d="M24 10.304c0-5.369-5.383-9.738-12-9.738-6.616 0-12 4.369-12 9.738 0 4.814 4.269 8.846 10.036 9.564.39.084.922.258 1.058.592.12.296.08.76.038 1.06l-.17 1.022c-.05.304-.242 1.19.1 1.62.3.376.796.248 1.11.028.324-.224 5.228-3.46 7.126-5.928 2.585-2.917 3.802-5.75 3.802-8.998zm-16.143 4.148h-1.636c-.47 0-.853-.383-.853-.853v-5.289c0-.47.383-.853.853-.853h1.636c.47 0 .853.383.853.853v5.289c0 .47-.383.853-.853.853zm4.512 0H10.73c-.47 0-.853-.383-.853-.853v-5.289c0-.47.383-.853.853-.853h1.636c.47 0 .853.383.853.853v1.895c0 .47-.383.853-.853.853H11.51v1.69h1.223c.47 0 .853.383.853.853v.852c0 .47-.383.854-.853.854zm3.89 0h-1.636c-.47 0-.853-.383-.853-.853v-5.289c0-.47.383-.853.853-.853h1.636c.47 0 .853.383.853.853v5.289c0 .47-.383.853-.853.853zm4.613 0h-1.636c-.47 0-.853-.383-.853-.853v-5.289c0-.47.383-.853.853-.853h1.636c.47 0 .853.383.853.853v1.895c0 .47-.383.853-.853.853H18.4v1.69h1.223c.47 0 .853.383.853.853v.852c0 .47-.383.854-.853.854z" />
+  </svg>
+);
+
+const WhatsAppIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+    <path d="M12.031 2c-5.51 0-9.99 4.479-9.99 9.99 0 2.08.636 4.045 1.84 5.694L3 22l4.47-.1.051-.02a9.9 9.9 0 004.51 1.09c5.51 0 9.99-4.48 9.99-9.99C22.021 6.479 17.541 2 12.031 2zm5.78 12.87c-.24.64-1.21 1.17-1.67 1.21-.46.04-.9.2-3.02-.63-2.55-1-4.14-3.55-4.27-3.72-.13-.17-1.07-1.41-1.07-2.7s.67-1.92.91-2.18c.24-.26.52-.33.69-.33s.34.01.49.02c.16.01.37-.06.57.42.2.49.69 1.67.75 1.79.06.12.1.26.02.42-.08.16-.12.26-.24.4-.12.14-.26.31-.37.42-.12.12-.25.25-.11.49.14.24.63 1.04 1.35 1.68.93.82 1.71 1.07 1.95 1.19.24.12.38.1.52-.06.14-.16.59-.69.75-.92.16-.23.33-.19.56-.11.23.08 1.48.7 1.73.82.25.12.42.18.48.29.06.1.06.6-.18 1.24z" />
+  </svg>
+);
+
+const formatWhatsAppPhone = (phone: string) => {
+  if (!phone) return "";
+  let cleaned = phone.replace(/[^\d+]/g, "");
+  if (cleaned.startsWith("0")) {
+    cleaned = "81" + cleaned.slice(1);
+  }
+  cleaned = cleaned.replace(/^\+/, "");
+  return cleaned;
+};
+
 export default function CompanyDetailPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -312,7 +335,9 @@ export default function CompanyDetailPage() {
     passportExpirationDate: "",
     contractPeriod: "",
     status: "active" as "active" | "expiring_soon" | "expired" | "resigned",
-    department: ""
+    department: "",
+    lineId: "",
+    whatsappPhone: ""
   });
 
   const searchParams = useSearchParams();
@@ -645,7 +670,9 @@ export default function CompanyDetailPage() {
       passportExpirationDate: "",
       contractPeriod: "",
       status: "active",
-      department: ""
+      department: "",
+      lineId: "",
+      whatsappPhone: ""
     });
     setIsEmpModalOpen(true);
   };
@@ -669,7 +696,9 @@ export default function CompanyDetailPage() {
       passportExpirationDate: emp.passportExpirationDate || "",
       contractPeriod: emp.contractPeriod || "",
       status: emp.status || "active",
-      department: emp.department || ""
+      department: emp.department || "",
+      lineId: emp.lineId || "",
+      whatsappPhone: emp.whatsappPhone || ""
     });
     setIsEmpModalOpen(true);
   };
@@ -693,7 +722,9 @@ export default function CompanyDetailPage() {
       passportExpirationDate: "",
       contractPeriod: "",
       status: "active",
-      department: ""
+      department: "",
+      lineId: "",
+      whatsappPhone: ""
     }));
     setIsAiFilled(true);
     setIsScannerModalOpen(false); // Close scanner modal
@@ -2428,6 +2459,26 @@ export default function CompanyDetailPage() {
                             />
                           </div>
 
+                          {/* Line ID & WhatsApp Phone */}
+                          <div className="space-y-1">
+                            <Label className="font-bold">Line ID (任意)</Label>
+                            <Input 
+                              value={empForm.lineId || ""} 
+                              onChange={(e) => setEmpForm({...empForm, lineId: e.target.value})} 
+                              placeholder="例: line_id_123"
+                              className="h-10 text-xs"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="font-bold">WhatsApp用電話番号 (任意)</Label>
+                            <Input 
+                              value={empForm.whatsappPhone || ""} 
+                              onChange={(e) => setEmpForm({...empForm, whatsappPhone: e.target.value})} 
+                              placeholder="例: +818012345678"
+                              className="h-10 text-xs"
+                            />
+                          </div>
+
                           <Separator className="sm:col-span-2 my-1" />
 
                           {/* Status of Residence & Expiration */}
@@ -2699,23 +2750,86 @@ export default function CompanyDetailPage() {
                                 </span>
                               </td>
                               {(user.role === "admin" || user.role === "company") && (
-                                <td className="p-4 text-right space-x-1.5">
-                                  <Button 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    onClick={() => handleOpenEditEmpModal(emp)} 
-                                    className="h-8 w-8 text-muted-foreground hover:text-primary border"
-                                  >
-                                    <Edit2 className="h-3.5 w-3.5" />
-                                  </Button>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    onClick={() => handleDeleteEmployee(emp.id, emp.name)} 
-                                    className="h-8 w-8 text-destructive hover:text-destructive/80 border hover:bg-destructive/5"
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </Button>
+                                 <td className="p-4 text-right space-x-1.5 whitespace-nowrap">
+                                  <TooltipProvider delayDuration={200}>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button 
+                                          variant="ghost" 
+                                          size="icon" 
+                                          asChild
+                                          className="h-8 w-8 text-[#06C755] hover:text-white hover:bg-[#06C755] border border-[#06C755]/20 inline-flex items-center justify-center"
+                                        >
+                                          <a 
+                                            href={emp.lineId ? `https://line.me/R/ti/p/${emp.lineId}` : `line://msg/text/${encodeURIComponent("こんにちは、連絡をとりたいです。")}`} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                          >
+                                            <LineIcon className="h-4 w-4" />
+                                          </a>
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p className="text-xs font-bold">Lineで連絡</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+
+                                    {(emp.whatsappPhone || emp.phone) && (
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button 
+                                            variant="ghost" 
+                                            size="icon" 
+                                            asChild
+                                            className="h-8 w-8 text-[#25D366] hover:text-white hover:bg-[#25D366] border border-[#25D366]/20 inline-flex items-center justify-center"
+                                          >
+                                            <a 
+                                              href={`https://wa.me/${formatWhatsAppPhone(emp.whatsappPhone || emp.phone || "")}`} 
+                                              target="_blank" 
+                                              rel="noopener noreferrer"
+                                            >
+                                              <WhatsAppIcon className="h-4 w-4" />
+                                            </a>
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p className="text-xs font-bold">WhatsAppで連絡</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    )}
+
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button 
+                                          variant="ghost" 
+                                          size="icon" 
+                                          onClick={() => handleOpenEditEmpModal(emp)} 
+                                          className="h-8 w-8 text-muted-foreground hover:text-primary border inline-flex items-center justify-center"
+                                        >
+                                          <Edit2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p className="text-xs font-bold">編集</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button 
+                                          variant="ghost" 
+                                          size="icon" 
+                                          onClick={() => handleDeleteEmployee(emp.id, emp.name)} 
+                                          className="h-8 w-8 text-destructive hover:text-destructive/80 border hover:bg-destructive/5 inline-flex items-center justify-center"
+                                        >
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p className="text-xs font-bold">削除</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
                                 </td>
                               )}
                             </tr>

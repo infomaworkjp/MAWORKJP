@@ -25,6 +25,8 @@ const EmployeeSchema = z.object({
   contractPeriod: z.string().min(1, "雇用契約期間は必須項目です"),
   status: z.enum(["active", "expiring_soon", "expired", "resigned"]).default("active"),
   department: z.string().optional().nullable(),
+  lineId: z.string().optional().nullable().or(z.literal("")),
+  whatsappPhone: z.string().optional().nullable().or(z.literal("")),
 });
 
 export type EmployeeData = z.infer<typeof EmployeeSchema>;
