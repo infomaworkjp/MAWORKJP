@@ -1,5 +1,8 @@
-import { redirect } from "next/navigation";
+"use client";
+import dynamic from 'next/dynamic';
 
-export default function RootPage() {
-  redirect("/login");
+const ClientApp = dynamic(() => import('../App'), { ssr: false });
+
+export default function Home() {
+  return <ClientApp />;
 }

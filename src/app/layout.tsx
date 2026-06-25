@@ -1,28 +1,22 @@
-import type {Metadata} from 'next';
 import './globals.css';
-import { AuthProvider } from '@/hooks/use-auth';
+import React from 'react';
 
-export const metadata: Metadata = {
-  title: 'MA WORK JP Portal',
-  description: 'Foreign employment management portal for MA WORK JP',
+export const metadata = {
+  title: 'M-A Work JP 業務管理システム',
+  description: '翻訳・通訳業務の顧客管理・案件管理・証拠保管システム',
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="en">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Source+Code+Pro:wght@400;700&display=swap" rel="stylesheet" />
-      </head>
-      <body className="font-body antialiased">
-        <AuthProvider>
+    <html lang="ja">
+      <body>
+        <div id="root">
           {children}
-        </AuthProvider>
+        </div>
       </body>
     </html>
   );
