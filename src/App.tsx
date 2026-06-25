@@ -1,6 +1,8 @@
 import React from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db, generateUUID, Case, Customer } from './db';
 import { LanguageProvider } from './context/LanguageContext';
 import { Navbar } from './components/layout/Navbar';
 import { Login } from './views/Login';
@@ -13,6 +15,56 @@ import { EvidencePage } from './views/Evidence';
 
 const AppContent: React.FC = () => {
   const { isAuthenticated, loading } = useAuth();
+  const customers = useLiveQuery(() => db.customers.toArray()) || [];
+
+  React.useEffect(() => {
+    if (!isAuthenticated || customers.length === 0) return;
+
+    const checkAndCreateDefaultCases = async () => {
+      for (const customer of customers) {
+        const count = await db.cases.where('customerId').equals(customer.customerId).count();
+        if (count === 0) {
+          let caseCategory = 'その他';
+          let caseTitle = customer.mainCategory || '新規案件';
+          
+          if (customer.mainCategory === '法律関係') {
+            caseCategory = '法律関係';
+            caseTitle = '法律関係案件';
+          } else if (customer.mainCategory === '書類のみの翻訳') {
+            caseCategory = '翻訳';
+            caseTitle = '書類翻訳案件';
+          } else if (customer.mainCategory === '在留カード更新サポート') {
+            caseCategory = '査証申請';
+            caseTitle = '在留カード更新サポート';
+          } else if (customer.mainCategory === '通訳関係') {
+            caseCategory = '通訳';
+            caseTitle = '通訳案件';
+          }
+          
+          const newCase: Case = {
+            caseId: generateUUID(),
+            customerId: customer.customerId,
+            title: caseTitle,
+            category: caseCategory,
+            consultationContent: '顧客登録時に自動生成されたデフォルト案件です。',
+            background: '',
+            actionTaken: '',
+            fee: 0,
+            paymentStatus: 'unpaid',
+            status: 'pending',
+            progress: 0,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            syncStatus: 'pending',
+          };
+          
+          await db.cases.put(newCase);
+        }
+      }
+    };
+
+    checkAndCreateDefaultCases();
+  }, [customers, isAuthenticated]);
 
   if (loading) {
     return (
