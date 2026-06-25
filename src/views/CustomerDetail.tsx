@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, generateUUID, Customer, Case, Evidence } from '../db';
 import { useLanguage } from '../context/LanguageContext';
-import { ArrowLeft, Edit2, Phone, Mail, Globe, Calendar, MapPin, UserCheck, FileText, Clipboard, Plus, Layers, MessageSquare, CheckCircle, XCircle, Clock, AlertCircle, Ban, CheckCircle2, Paperclip, Eye, Trash2, HelpCircle, ImageIcon, Music, Video, Download } from 'lucide-react';
+import { ArrowLeft, Edit2, Phone, Mail, Globe, Calendar, MapPin, UserCheck, FileText, Clipboard, Plus, Layers, MessageSquare, CheckCircle, XCircle, Clock, AlertCircle, Ban, CheckCircle2, Paperclip, Eye, Trash2, HelpCircle, ImageIcon, Music, Video, Download, Tag } from 'lucide-react';
 
 export const CustomerDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -27,6 +27,7 @@ export const CustomerDetail: React.FC = () => {
   const [referrer, setReferrer] = useState('');
   const [notes, setNotes] = useState('');
   const [status, setStatus] = useState<'active' | 'inactive'>('active');
+  const [mainCategory, setMainCategory] = useState('書類のみの翻訳');
 
   // Form states (New Case)
   const [caseTitle, setCaseTitle] = useState('');
@@ -108,6 +109,7 @@ export const CustomerDetail: React.FC = () => {
     setReferrer(customer.referrer || '');
     setNotes(customer.notes || '');
     setStatus(customer.status || 'active');
+    setMainCategory(customer.mainCategory || 'その他');
     setIsEditModalOpen(true);
   };
 
@@ -126,6 +128,7 @@ export const CustomerDetail: React.FC = () => {
       referrer,
       notes,
       status,
+      mainCategory,
       updatedAt: Date.now(),
       syncStatus: 'pending',
     };
@@ -278,23 +281,35 @@ export const CustomerDetail: React.FC = () => {
         <div className="lg:col-span-1 space-y-6">
           <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm space-y-6">
             <div className="space-y-3">
-              <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                customer.status === 'active'
-                  ? 'bg-emerald-50 text-emerald-700'
-                  : 'bg-slate-100 text-slate-500'
-              }`}>
-                {customer.status === 'active' ? (
-                  <>
-                    <CheckCircle className="h-3 w-3" />
-                    <span>有効顧客</span>
-                  </>
-                ) : (
-                  <>
-                    <XCircle className="h-3 w-3" />
-                    <span>無効顧客</span>
-                  </>
-                )}
-              </span>
+              <div className="flex flex-wrap gap-2 items-center">
+                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                  customer.status === 'active'
+                    ? 'bg-emerald-50 text-emerald-700'
+                    : 'bg-slate-100 text-slate-500'
+                }`}>
+                  {customer.status === 'active' ? (
+                    <>
+                      <CheckCircle className="h-3 w-3" />
+                      <span>有効顧客</span>
+                    </>
+                  ) : (
+                    <>
+                      <XCircle className="h-3 w-3" />
+                      <span>無効顧客</span>
+                    </>
+                  )}
+                </span>
+                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black ${
+                  customer.mainCategory === '法律関係' ? 'bg-purple-50 text-purple-700 border border-purple-100' :
+                  customer.mainCategory === '書類のみの翻訳' ? 'bg-blue-50 text-blue-700 border border-blue-100' :
+                  customer.mainCategory === '在留カード更新サポート' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
+                  customer.mainCategory === '通訳関係' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
+                  'bg-slate-50 text-slate-500 border border-slate-150'
+                }`}>
+                  <Tag className="h-3 w-3" />
+                  <span>{customer.mainCategory || 'その他'}</span>
+                </span>
+              </div>
               
               <h2 className="text-xl font-black text-slate-800 tracking-tight leading-tight">
                 {customer.name}
@@ -307,6 +322,14 @@ export const CustomerDetail: React.FC = () => {
             <hr className="border-slate-100" />
 
             <div className="space-y-4">
+              <div className="flex items-start gap-3">
+                <Tag className="h-4.5 w-4.5 text-slate-400 shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">主な業務カテゴリー</span>
+                  <span className="text-xs font-bold text-slate-700">{customer.mainCategory || 'その他'}</span>
+                </div>
+              </div>
+
               <div className="flex items-start gap-3">
                 <Globe className="h-4.5 w-4.5 text-slate-400 shrink-0 mt-0.5" />
                 <div className="space-y-0.5">
@@ -726,6 +749,20 @@ export const CustomerDetail: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">主な業務カテゴリー</label>
+                  <select
+                    value={mainCategory}
+                    onChange={(e) => setMainCategory(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                  >
+                    <option value="法律関係">法律関係</option>
+                    <option value="書類のみの翻訳">書類のみの翻訳</option>
+                    <option value="在留カード更新サポート">在留カード更新サポート</option>
+                    <option value="通訳関係">通訳関係</option>
+                    <option value="その他">その他</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">ステータス</label>
                   <select
                     value={status}
@@ -796,7 +833,7 @@ export const CustomerDetail: React.FC = () => {
                     <option value="翻訳">翻訳</option>
                     <option value="通訳">通訳</option>
                     <option value="査証申請">査証申請 (ビザ)</option>
-                    <option value="法律相談">法律相談</option>
+                    <option value="法律関係">法律関係</option>
                     <option value="その他">その他</option>
                   </select>
                 </div>

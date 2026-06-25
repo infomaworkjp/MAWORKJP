@@ -11,6 +11,7 @@ export interface Customer {
   referrer: string; // 紹介者
   notes: string; // メメモ
   status: 'active' | 'inactive';
+  mainCategory?: string; // 主な目的・カテゴリー
   createdAt: number;
   updatedAt: number;
   syncStatus: 'pending' | 'synced';

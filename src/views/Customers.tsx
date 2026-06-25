@@ -14,6 +14,7 @@ export const Customers: React.FC = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedNationality, setSelectedNationality] = useState('All');
+  const [selectedCategory, setSelectedCategory] = useState('All');
   
   // Modals state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -30,6 +31,7 @@ export const Customers: React.FC = () => {
   const [referrer, setReferrer] = useState('');
   const [notes, setNotes] = useState('');
   const [status, setStatus] = useState<'active' | 'inactive'>('active');
+  const [mainCategory, setMainCategory] = useState('書類のみの翻訳');
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,6 +46,7 @@ export const Customers: React.FC = () => {
       referrer,
       notes,
       status,
+      mainCategory,
       createdAt: Date.now(),
       updatedAt: Date.now(),
       syncStatus: 'pending',
@@ -69,6 +72,7 @@ export const Customers: React.FC = () => {
       referrer,
       notes,
       status,
+      mainCategory,
       updatedAt: Date.now(),
       syncStatus: 'pending',
     };
@@ -105,6 +109,7 @@ export const Customers: React.FC = () => {
     setReferrer(customer.referrer);
     setNotes(customer.notes);
     setStatus(customer.status);
+    setMainCategory(customer.mainCategory || 'その他');
     setIsEditModalOpen(true);
   };
 
@@ -118,6 +123,7 @@ export const Customers: React.FC = () => {
     setReferrer('');
     setNotes('');
     setStatus('active');
+    setMainCategory('書類のみの翻訳');
     setCurrentCustomer(null);
   };
 
@@ -131,7 +137,11 @@ export const Customers: React.FC = () => {
       c.phone.includes(searchTerm) ||
       (c.referrer && c.referrer.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesNationality = selectedNationality === 'All' || c.nationality === selectedNationality;
-    return matchesSearch && matchesNationality;
+    const matchesCategory =
+      selectedCategory === 'All' ||
+      c.mainCategory === selectedCategory ||
+      (!c.mainCategory && selectedCategory === 'その他');
+    return matchesSearch && matchesNationality && matchesCategory;
   });
 
   return (
@@ -152,24 +162,58 @@ export const Customers: React.FC = () => {
       </div>
 
       {/* Filters bar */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="氏名・電話番号・紹介者で検索..."
-            className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-xs bg-white"
-          />
+      <div className="space-y-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="氏名・電話番号・紹介者で検索..."
+              className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-xs bg-white"
+            />
+          </div>
+
+          {/* Category filter */}
+          <div className="flex gap-1.5 overflow-x-auto pb-1 md:pb-0 md:col-span-2 items-center">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider mr-1">業務:</span>
+            <button
+              onClick={() => setSelectedCategory('All')}
+              className={`px-3 py-1.5 text-xs font-bold rounded-full border whitespace-nowrap transition active:scale-95 ${
+                selectedCategory === 'All'
+                  ? 'bg-indigo-900 text-white border-indigo-900'
+                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              すべての業務
+            </button>
+            {['法律関係', '書類のみの翻訳', '在留カード更新サポート', '通訳関係', 'その他'].map((cat) => {
+              const count = customers.filter(c => c.mainCategory === cat || (!c.mainCategory && cat === 'その他')).length;
+              return (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-full border whitespace-nowrap transition active:scale-95 ${
+                    selectedCategory === cat
+                      ? 'bg-indigo-900 text-white border-indigo-900'
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  {cat} ({count})
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Nationality filter */}
-        <div className="flex gap-1.5 overflow-x-auto pb-1 md:pb-0 md:col-span-2">
+        <div className="flex gap-1.5 overflow-x-auto pb-1 items-center bg-slate-50 p-2 rounded-xl border border-slate-100">
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider mr-1 shrink-0">国籍:</span>
           <button
             onClick={() => setSelectedNationality('All')}
-            className={`px-3 py-1.5 text-xs font-bold rounded-full border whitespace-nowrap transition active:scale-95 ${
+            className={`px-3 py-1 text-xs font-bold rounded-full border whitespace-nowrap transition active:scale-95 ${
               selectedNationality === 'All'
                 ? 'bg-indigo-900 text-white border-indigo-900'
                 : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
@@ -181,7 +225,7 @@ export const Customers: React.FC = () => {
             <button
               key={nat}
               onClick={() => setSelectedNationality(nat)}
-              className={`px-3 py-1.5 text-xs font-bold rounded-full border whitespace-nowrap transition active:scale-95 ${
+              className={`px-3 py-1 text-xs font-bold rounded-full border whitespace-nowrap transition active:scale-95 ${
                 selectedNationality === nat
                   ? 'bg-indigo-900 text-white border-indigo-900'
                   : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
@@ -223,7 +267,18 @@ export const Customers: React.FC = () => {
                   >
                     <td className="p-4">
                       <div className="font-bold text-indigo-900 hover:underline text-sm">{c.name}</div>
-                      <div className="text-[10px] text-slate-400 font-mono mt-0.5">{c.customerId.substring(0, 8)}...</div>
+                      <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                        <span className="text-[9px] text-slate-400 font-mono">{c.customerId.substring(0, 8)}...</span>
+                        <span className={`inline-flex items-center text-[9px] font-black px-2 py-0.5 rounded-full ${
+                          c.mainCategory === '法律関係' ? 'bg-purple-50 text-purple-700' :
+                          c.mainCategory === '書類のみの翻訳' ? 'bg-blue-50 text-blue-700' :
+                          c.mainCategory === '在留カード更新サポート' ? 'bg-emerald-50 text-emerald-700' :
+                          c.mainCategory === '通訳関係' ? 'bg-amber-50 text-amber-700' :
+                          'bg-slate-100 text-slate-500'
+                        }`}>
+                          {c.mainCategory || 'その他'}
+                        </span>
+                      </div>
                     </td>
                     <td className="p-4 space-y-1">
                       <div className="flex items-center gap-1.5 text-slate-700 font-bold">
@@ -407,6 +462,20 @@ export const Customers: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">主な業務カテゴリー</label>
+                  <select
+                    value={mainCategory}
+                    onChange={(e) => setMainCategory(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                  >
+                    <option value="法律関係">法律関係</option>
+                    <option value="書類のみの翻訳">書類のみの翻訳</option>
+                    <option value="在留カード更新サポート">在留カード更新サポート</option>
+                    <option value="通訳関係">通訳関係</option>
+                    <option value="その他">その他</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('status')}</label>
                   <select
                     value={status}
@@ -536,6 +605,20 @@ export const Customers: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">主な業務カテゴリー</label>
+                  <select
+                    value={mainCategory}
+                    onChange={(e) => setMainCategory(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                  >
+                    <option value="法律関係">法律関係</option>
+                    <option value="書類のみの翻訳">書類のみの翻訳</option>
+                    <option value="在留カード更新サポート">在留カード更新サポート</option>
+                    <option value="通訳関係">通訳関係</option>
+                    <option value="その他">その他</option>
+                  </select>
+                </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('status')}</label>
                   <select

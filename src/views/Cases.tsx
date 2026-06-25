@@ -340,7 +340,7 @@ export const Cases: React.FC = () => {
                     <option value="翻訳">翻訳</option>
                     <option value="通訳">通訳</option>
                     <option value="査証申請">査証申請 (ビザ)</option>
-                    <option value="法律相談">法律相談</option>
+                    <option value="法律関係">法律関係</option>
                     <option value="その他">その他</option>
                   </select>
                 </div>
@@ -497,7 +497,7 @@ export const Cases: React.FC = () => {
                     <option value="翻訳">翻訳</option>
                     <option value="通訳">通訳</option>
                     <option value="査証申請">査証申請 (ビザ)</option>
-                    <option value="法律相談">法律相談</option>
+                    <option value="法律関係">法律関係</option>
                     <option value="その他">その他</option>
                   </select>
                 </div>
