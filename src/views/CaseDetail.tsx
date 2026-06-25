@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, generateUUID, Case, Customer, Consultation, Evidence } from '../db';
 import { useLanguage } from '../context/LanguageContext';
-import { ArrowLeft, Edit2, User, Layers, Calendar, Clipboard, MessageSquare, Paperclip, Plus, Trash2, Eye, Upload, CheckCircle, CheckCircle2, Clock, AlertCircle, Ban, HelpCircle, ImageIcon, FileText, Music, Video, DollarSign, BookOpen } from 'lucide-react';
+import { ArrowLeft, Edit2, User, Layers, Calendar, Clipboard, MessageSquare, Paperclip, Plus, Trash2, Eye, Upload, CheckCircle, CheckCircle2, Clock, AlertCircle, Ban, HelpCircle, ImageIcon, FileText, Music, Video, DollarSign, BookOpen, Download } from 'lucide-react';
 
 export const CaseDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -38,6 +38,7 @@ export const CaseDetail: React.FC = () => {
   // Drag and drop uploader state
   const [isDragActive, setIsDragActive] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [evidenceTab, setEvidenceTab] = useState<'all' | 'image' | 'audio' | 'other'>('all');
 
   // Reactively query case detail
   const kase = useLiveQuery(() => id ? db.cases.get(id) : Promise.resolve(undefined), [id]);
@@ -205,6 +206,17 @@ export const CaseDetail: React.FC = () => {
       await db.evidenceFiles.delete(evidenceId);
       if (previewEvidence?.evidenceId === evidenceId) setPreviewEvidence(null);
     }
+  };
+
+  const handleDownloadEvidence = (ev: Evidence) => {
+    const url = URL.createObjectURL(ev.fileData);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = ev.name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   if (kase === undefined) {
@@ -559,49 +571,118 @@ export const CaseDetail: React.FC = () => {
 
             <hr className="border-slate-100" />
 
-            {/* Evidence items list */}
-            <div className="space-y-2 max-h-[350px] overflow-y-auto pr-1">
-              {associatedEvidence.length === 0 ? (
-                <div className="text-center text-slate-400 text-xs py-8">
-                  アップロードされたファイルはありません。
-                </div>
-              ) : (
-                associatedEvidence.map((ev) => (
-                  <div key={ev.evidenceId} className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-100 text-xs gap-2 hover:bg-slate-100/50 transition">
-                    <div className="truncate min-w-0 flex-1">
-                      <div className="font-bold text-slate-800 truncate" title={ev.name}>{ev.name}</div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[9px] text-slate-400 font-mono">
-                          {(ev.size / 1024).toFixed(1)} KB
-                        </span>
-                        <span className={`inline-flex items-center text-[8px] font-bold ${
-                          ev.syncStatus === 'synced' ? 'text-emerald-600' : 'text-amber-500'
-                        }`}>
-                          {ev.syncStatus === 'synced' ? '● 同期済' : '● 未同期'}
-                        </span>
+            {/* Tab navigation */}
+            <div className="flex border-b border-slate-100 mb-4">
+              {(['all', 'image', 'audio', 'other'] as const).map((tab) => {
+                let label = 'すべて';
+                if (tab === 'image') label = '写真';
+                if (tab === 'audio') label = '音声';
+                if (tab === 'other') label = '書類・他';
+
+                const count = associatedEvidence.filter(ev => {
+                  if (tab === 'all') return true;
+                  if (tab === 'image') return ev.type.startsWith('image/');
+                  if (tab === 'audio') return ev.type.startsWith('audio/');
+                  return !ev.type.startsWith('image/') && !ev.type.startsWith('audio/');
+                }).length;
+
+                return (
+                  <button
+                    key={tab}
+                    onClick={() => setEvidenceTab(tab)}
+                    className={`flex-1 pb-2 text-[10px] font-bold border-b-2 text-center transition ${
+                      evidenceTab === tab
+                        ? 'border-indigo-900 text-indigo-900'
+                        : 'border-transparent text-slate-400 hover:text-slate-600'
+                    }`}
+                  >
+                    {label} ({count})
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Filtered evidence items */}
+            {(() => {
+              const filteredList = associatedEvidence.filter((ev) => {
+                if (evidenceTab === 'all') return true;
+                if (evidenceTab === 'image') return ev.type.startsWith('image/');
+                if (evidenceTab === 'audio') return ev.type.startsWith('audio/');
+                return !ev.type.startsWith('image/') && !ev.type.startsWith('audio/');
+              });
+
+              if (filteredList.length === 0) {
+                return (
+                  <div className="text-center text-slate-400 text-xs py-8">
+                    該当するファイルはありません。
+                  </div>
+                );
+              }
+
+              if (evidenceTab === 'image') {
+                // Photo Gallery grid
+                return (
+                  <div className="grid grid-cols-3 gap-2 max-h-[350px] overflow-y-auto pr-1">
+                    {filteredList.map((ev) => (
+                      <ImageThumbnail
+                        key={ev.evidenceId}
+                        evidence={ev}
+                        onPreview={() => setPreviewEvidence(ev)}
+                        onDelete={() => handleDeleteEvidence(ev.evidenceId)}
+                        onDownload={() => handleDownloadEvidence(ev)}
+                      />
+                    ))}
+                  </div>
+                );
+              }
+
+              // List view for other types
+              return (
+                <div className="space-y-2 max-h-[350px] overflow-y-auto pr-1">
+                  {filteredList.map((ev) => (
+                    <div key={ev.evidenceId} className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-100 text-xs gap-2 hover:bg-slate-100/50 transition">
+                      <div className="truncate min-w-0 flex-1">
+                        <div className="font-bold text-slate-800 truncate" title={ev.name}>{ev.name}</div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[9px] text-slate-400 font-mono">
+                            {(ev.size / 1024).toFixed(1)} KB
+                          </span>
+                          <span className={`inline-flex items-center text-[8px] font-bold ${
+                            ev.syncStatus === 'synced' ? 'text-emerald-600' : 'text-amber-500'
+                          }`}>
+                            {ev.syncStatus === 'synced' ? '● 同期済' : '● 未同期'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => setPreviewEvidence(ev)}
+                          className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-white border border-transparent hover:border-slate-200 rounded-lg transition"
+                          title="プレビュー"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDownloadEvidence(ev)}
+                          className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-white border border-transparent hover:border-slate-200 rounded-lg transition"
+                          title="ダウンロード"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteEvidence(ev.evidenceId)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-white border border-transparent hover:border-slate-200 rounded-lg transition"
+                          title="削除"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                     </div>
-
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        onClick={() => setPreviewEvidence(ev)}
-                        className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-white border border-transparent hover:border-slate-200 rounded-lg transition"
-                        title="プレビュー"
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteEvidence(ev.evidenceId)}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-white border border-transparent hover:border-slate-200 rounded-lg transition"
-                        title="削除"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+                  ))}
+                </div>
+              );
+            })()}
             
             <div className="text-[9px] text-slate-400 leading-relaxed font-semibold bg-slate-50/50 p-2.5 border rounded-lg">
               ⚠️ ローカルのIndexedDBに安全に保管され、オンライン接続時にクラウドに自動同期されます。
@@ -912,6 +993,65 @@ export const CaseDetail: React.FC = () => {
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+// Thumbnail subcomponent for managing image ObjectURLs memory leaks
+const ImageThumbnail: React.FC<{
+  evidence: Evidence;
+  onPreview: () => void;
+  onDelete: () => void;
+  onDownload: () => void;
+}> = ({ evidence, onPreview, onDelete, onDownload }) => {
+  const [url, setUrl] = useState<string>('');
+
+  useEffect(() => {
+    const objectUrl = URL.createObjectURL(evidence.fileData);
+    setUrl(objectUrl);
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, [evidence]);
+
+  return (
+    <div className="relative group aspect-square rounded-xl overflow-hidden border border-slate-100 bg-slate-100 shadow-sm flex items-center justify-center">
+      {url ? (
+        <img src={url} alt={evidence.name} className="w-full h-full object-cover" />
+      ) : (
+        <div className="animate-pulse w-full h-full bg-slate-200" />
+      )}
+      
+      {/* Hover overlay with actions */}
+      <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition duration-200 flex flex-col justify-between p-2">
+        <div className="text-[8px] text-white font-bold truncate" title={evidence.name}>
+          {evidence.name}
+        </div>
+        
+        <div className="flex justify-center gap-1 mt-auto">
+          <button
+            onClick={onPreview}
+            className="p-1 bg-white/20 hover:bg-white/40 text-white rounded-lg transition"
+            title="プレビュー"
+          >
+            <Eye className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={onDownload}
+            className="p-1 bg-white/20 hover:bg-white/40 text-white rounded-lg transition"
+            title="ダウンロード"
+          >
+            <Download className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={onDelete}
+            className="p-1 bg-rose-600/80 hover:bg-rose-600 text-white rounded-lg transition"
+            title="削除"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

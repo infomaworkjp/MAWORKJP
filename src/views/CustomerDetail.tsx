@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, generateUUID, Customer, Case, Evidence } from '../db';
 import { useLanguage } from '../context/LanguageContext';
-import { ArrowLeft, Edit2, Phone, Mail, Globe, Calendar, MapPin, UserCheck, FileText, Clipboard, Plus, Layers, MessageSquare, CheckCircle, XCircle, Clock, AlertCircle, Ban, CheckCircle2, Paperclip, Eye, Trash2, HelpCircle, ImageIcon, Music, Video } from 'lucide-react';
+import { ArrowLeft, Edit2, Phone, Mail, Globe, Calendar, MapPin, UserCheck, FileText, Clipboard, Plus, Layers, MessageSquare, CheckCircle, XCircle, Clock, AlertCircle, Ban, CheckCircle2, Paperclip, Eye, Trash2, HelpCircle, ImageIcon, Music, Video, Download } from 'lucide-react';
 
 export const CustomerDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -15,6 +15,7 @@ export const CustomerDetail: React.FC = () => {
   const [isAddCaseOpen, setIsAddCaseOpen] = useState(false);
   const [previewEvidence, setPreviewEvidence] = useState<Evidence | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [evidenceTab, setEvidenceTab] = useState<'all' | 'image' | 'audio' | 'other'>('all');
 
   // Form states (Customer Edit)
   const [name, setName] = useState('');
@@ -74,6 +75,17 @@ export const CustomerDetail: React.FC = () => {
       await db.evidenceFiles.delete(evidenceId);
       if (previewEvidence?.evidenceId === evidenceId) setPreviewEvidence(null);
     }
+  };
+
+  const handleDownloadEvidence = (ev: Evidence) => {
+    const url = URL.createObjectURL(ev.fileData);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = ev.name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const getFileIcon = (type: string) => {
@@ -450,51 +462,125 @@ export const CustomerDetail: React.FC = () => {
               <span>証拠ファイル一覧 ({associatedEvidence.length})</span>
             </h3>
 
-            {associatedEvidence.length === 0 ? (
-              <div className="text-center text-slate-400 text-xs py-8 border-2 border-dashed rounded-xl border-slate-100 font-semibold">
-                アップロードされたファイルはありません。各案件詳細ページから追加できます。
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[300px] overflow-y-auto pr-1">
-                {associatedEvidence.map((ev) => {
-                  const parentCase = associatedCases.find(c => c.caseId === ev.caseId);
-                  return (
-                    <div key={ev.evidenceId} className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-100 text-xs gap-2 hover:bg-slate-100/50 transition">
-                      <div className="truncate min-w-0 flex-1">
-                        <div className="font-bold text-slate-800 truncate" title={ev.name}>{ev.name}</div>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[9px] text-slate-400 font-mono">
-                            {(ev.size / 1024).toFixed(1)} KB
-                          </span>
-                          {parentCase && (
-                            <span className="text-[9px] text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded font-bold truncate max-w-[120px]" title={parentCase.title}>
-                              {parentCase.title}
+            {/* Tab navigation */}
+            <div className="flex border-b border-slate-100 mb-4">
+              {(['all', 'image', 'audio', 'other'] as const).map((tab) => {
+                let label = 'すべて';
+                if (tab === 'image') label = '写真';
+                if (tab === 'audio') label = '音声';
+                if (tab === 'other') label = '書類・他';
+
+                const count = associatedEvidence.filter(ev => {
+                  if (tab === 'all') return true;
+                  if (tab === 'image') return ev.type.startsWith('image/');
+                  if (tab === 'audio') return ev.type.startsWith('audio/');
+                  return !ev.type.startsWith('image/') && !ev.type.startsWith('audio/');
+                }).length;
+
+                return (
+                  <button
+                    key={tab}
+                    onClick={() => setEvidenceTab(tab)}
+                    className={`flex-1 pb-2 text-[10px] font-bold border-b-2 text-center transition ${
+                      evidenceTab === tab
+                        ? 'border-indigo-900 text-indigo-900'
+                        : 'border-transparent text-slate-400 hover:text-slate-600'
+                    }`}
+                  >
+                    {label} ({count})
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Filtered evidence items */}
+            {(() => {
+              const filteredList = associatedEvidence.filter((ev) => {
+                if (evidenceTab === 'all') return true;
+                if (evidenceTab === 'image') return ev.type.startsWith('image/');
+                if (evidenceTab === 'audio') return ev.type.startsWith('audio/');
+                return !ev.type.startsWith('image/') && !ev.type.startsWith('audio/');
+              });
+
+              if (filteredList.length === 0) {
+                return (
+                  <div className="text-center text-slate-400 text-xs py-8">
+                    該当するファイルはありません。
+                  </div>
+                );
+              }
+
+              if (evidenceTab === 'image') {
+                // Photo Gallery grid
+                return (
+                  <div className="grid grid-cols-3 gap-2 max-h-[300px] overflow-y-auto pr-1">
+                    {filteredList.map((ev) => {
+                      const parentCase = associatedCases.find(c => c.caseId === ev.caseId);
+                      return (
+                        <ImageThumbnail
+                          key={ev.evidenceId}
+                          evidence={ev}
+                          onPreview={() => setPreviewEvidence(ev)}
+                          onDelete={() => handleDeleteEvidence(ev.evidenceId)}
+                          onDownload={() => handleDownloadEvidence(ev)}
+                          parentCaseTitle={parentCase?.title}
+                        />
+                      );
+                    })}
+                  </div>
+                );
+              }
+
+              // List view for other types
+              return (
+                <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                  {filteredList.map((ev) => {
+                    const parentCase = associatedCases.find(c => c.caseId === ev.caseId);
+                    return (
+                      <div key={ev.evidenceId} className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-100 text-xs gap-2 hover:bg-slate-100/50 transition">
+                        <div className="truncate min-w-0 flex-1">
+                          <div className="font-bold text-slate-800 truncate" title={ev.name}>{ev.name}</div>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-[9px] text-slate-400 font-mono">
+                              {(ev.size / 1024).toFixed(1)} KB
                             </span>
-                          )}
+                            {parentCase && (
+                              <span className="text-[9px] text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded font-bold truncate max-w-[120px]" title={parentCase.title}>
+                                {parentCase.title}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            onClick={() => setPreviewEvidence(ev)}
+                            className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-white border border-transparent hover:border-slate-200 rounded-lg transition"
+                            title="プレビュー"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDownloadEvidence(ev)}
+                            className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-white border border-transparent hover:border-slate-200 rounded-lg transition"
+                            title="ダウンロード"
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteEvidence(ev.evidenceId)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-white border border-transparent hover:border-slate-200 rounded-lg transition"
+                            title="削除"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
                         </div>
                       </div>
-
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          onClick={() => setPreviewEvidence(ev)}
-                          className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-white border border-transparent hover:border-slate-200 rounded-lg transition"
-                          title="プレビュー"
-                        >
-                          <Eye className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteEvidence(ev.evidenceId)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-white border border-transparent hover:border-slate-200 rounded-lg transition"
-                          title="削除"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
 
           {/* Linked Consultation Timeline Section */}
@@ -874,6 +960,73 @@ export const CustomerDetail: React.FC = () => {
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+// Thumbnail subcomponent for managing image ObjectURLs memory leaks
+const ImageThumbnail: React.FC<{
+  evidence: Evidence;
+  onPreview: () => void;
+  onDelete: () => void;
+  onDownload: () => void;
+  parentCaseTitle?: string;
+}> = ({ evidence, onPreview, onDelete, onDownload, parentCaseTitle }) => {
+  const [url, setUrl] = useState<string>('');
+
+  useEffect(() => {
+    const objectUrl = URL.createObjectURL(evidence.fileData);
+    setUrl(objectUrl);
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, [evidence]);
+
+  return (
+    <div className="relative group aspect-square rounded-xl overflow-hidden border border-slate-100 bg-slate-100 shadow-sm flex items-center justify-center">
+      {url ? (
+        <img src={url} alt={evidence.name} className="w-full h-full object-cover" />
+      ) : (
+        <div className="animate-pulse w-full h-full bg-slate-200" />
+      )}
+      
+      {/* Hover overlay with actions */}
+      <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition duration-200 flex flex-col justify-between p-2">
+        <div className="truncate min-w-0">
+          <div className="text-[8px] text-white font-bold truncate" title={evidence.name}>
+            {evidence.name}
+          </div>
+          {parentCaseTitle && (
+            <div className="text-[7px] text-indigo-200 font-bold truncate mt-0.5" title={parentCaseTitle}>
+              案件: {parentCaseTitle}
+            </div>
+          )}
+        </div>
+        
+        <div className="flex justify-center gap-1 mt-auto">
+          <button
+            onClick={onPreview}
+            className="p-1 bg-white/20 hover:bg-white/40 text-white rounded-lg transition"
+            title="プレビュー"
+          >
+            <Eye className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={onDownload}
+            className="p-1 bg-white/20 hover:bg-white/40 text-white rounded-lg transition"
+            title="ダウンロード"
+          >
+            <Download className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={onDelete}
+            className="p-1 bg-rose-600/80 hover:bg-rose-600 text-white rounded-lg transition"
+            title="削除"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
