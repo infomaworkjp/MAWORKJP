@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, generateUUID, Customer, Case } from '../db';
+import { db, generateUUID, Customer, Case, Evidence } from '../db';
 import { useLanguage } from '../context/LanguageContext';
-import { ArrowLeft, Edit2, Phone, Mail, Globe, Calendar, MapPin, UserCheck, FileText, Clipboard, Plus, Layers, MessageSquare, CheckCircle, XCircle, Clock, AlertCircle, Ban, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Edit2, Phone, Mail, Globe, Calendar, MapPin, UserCheck, FileText, Clipboard, Plus, Layers, MessageSquare, CheckCircle, XCircle, Clock, AlertCircle, Ban, CheckCircle2, Paperclip, Eye, Trash2, HelpCircle, ImageIcon, Music, Video } from 'lucide-react';
 
 export const CustomerDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -13,6 +13,8 @@ export const CustomerDetail: React.FC = () => {
   // Modals state
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAddCaseOpen, setIsAddCaseOpen] = useState(false);
+  const [previewEvidence, setPreviewEvidence] = useState<Evidence | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   // Form states (Customer Edit)
   const [name, setName] = useState('');
@@ -45,6 +47,42 @@ export const CustomerDetail: React.FC = () => {
   const associatedConsultations = useLiveQuery(() => {
     return id ? db.consultations.where('customerId').equals(id).toArray() : Promise.resolve([]);
   }, [id]) || [];
+
+  // Reactively query evidence files for all cases of this customer
+  const associatedEvidence = useLiveQuery(async () => {
+    if (!id) return [];
+    const cases = await db.cases.where('customerId').equals(id).toArray();
+    const caseIds = cases.map(c => c.caseId);
+    if (caseIds.length === 0) return [];
+    return db.evidenceFiles.where('caseId').anyOf(caseIds).toArray();
+  }, [id, associatedCases]) || [];
+
+  // Clean up ObjectURLs to prevent memory leaks
+  useEffect(() => {
+    if (previewEvidence?.fileData) {
+      const url = URL.createObjectURL(previewEvidence.fileData);
+      setPreviewUrl(url);
+      return () => {
+        URL.revokeObjectURL(url);
+        setPreviewUrl(null);
+      };
+    }
+  }, [previewEvidence]);
+
+  const handleDeleteEvidence = async (evidenceId: string) => {
+    if (window.confirm('この証拠ファイルを削除してもよろしいですか？')) {
+      await db.evidenceFiles.delete(evidenceId);
+      if (previewEvidence?.evidenceId === evidenceId) setPreviewEvidence(null);
+    }
+  };
+
+  const getFileIcon = (type: string) => {
+    if (type.startsWith('image/')) return <ImageIcon className="h-5 w-5 text-emerald-500" />;
+    if (type === 'application/pdf') return <FileText className="h-5 w-5 text-rose-500" />;
+    if (type.startsWith('audio/')) return <Music className="h-5 w-5 text-amber-500" />;
+    if (type.startsWith('video/')) return <Video className="h-5 w-5 text-indigo-500" />;
+    return <Paperclip className="h-5 w-5 text-slate-400" />;
+  };
 
   // Initialize edit form values when customer loads or when modal opens
   const openEditModal = () => {
@@ -405,6 +443,60 @@ export const CustomerDetail: React.FC = () => {
             )}
           </div>
 
+          {/* Linked Evidence Files Section */}
+          <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm space-y-4">
+            <h3 className="text-sm font-black text-slate-800 tracking-tight flex items-center gap-2">
+              <Paperclip className="h-4 w-4 text-indigo-900" />
+              <span>証拠ファイル一覧 ({associatedEvidence.length})</span>
+            </h3>
+
+            {associatedEvidence.length === 0 ? (
+              <div className="text-center text-slate-400 text-xs py-8 border-2 border-dashed rounded-xl border-slate-100 font-semibold">
+                アップロードされたファイルはありません。各案件詳細ページから追加できます。
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[300px] overflow-y-auto pr-1">
+                {associatedEvidence.map((ev) => {
+                  const parentCase = associatedCases.find(c => c.caseId === ev.caseId);
+                  return (
+                    <div key={ev.evidenceId} className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-100 text-xs gap-2 hover:bg-slate-100/50 transition">
+                      <div className="truncate min-w-0 flex-1">
+                        <div className="font-bold text-slate-800 truncate" title={ev.name}>{ev.name}</div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[9px] text-slate-400 font-mono">
+                            {(ev.size / 1024).toFixed(1)} KB
+                          </span>
+                          {parentCase && (
+                            <span className="text-[9px] text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded font-bold truncate max-w-[120px]" title={parentCase.title}>
+                              {parentCase.title}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => setPreviewEvidence(ev)}
+                          className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-white border border-transparent hover:border-slate-200 rounded-lg transition"
+                          title="プレビュー"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteEvidence(ev.evidenceId)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-white border border-transparent hover:border-slate-200 rounded-lg transition"
+                          title="削除"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           {/* Linked Consultation Timeline Section */}
           <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm space-y-6">
             <h3 className="text-sm font-black text-slate-800 tracking-tight flex items-center gap-2">
@@ -720,6 +812,65 @@ export const CustomerDetail: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Preview Modal */}
+      {previewEvidence && previewUrl && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white border border-slate-100 rounded-2xl w-full max-w-3xl h-[80vh] shadow-xl overflow-hidden flex flex-col justify-between">
+            <div className="p-4 border-b flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {getFileIcon(previewEvidence.type)}
+                <h3 className="text-sm font-black text-slate-800 tracking-tight truncate max-w-[450px]">
+                  {previewEvidence.name}
+                </h3>
+              </div>
+              <button
+                onClick={() => setPreviewEvidence(null)}
+                className="px-3 py-1.5 border text-slate-700 hover:bg-slate-50 text-xs font-bold rounded-xl transition active:scale-95"
+              >
+                閉じる
+              </button>
+            </div>
+
+            {/* Preview Area */}
+            <div className="flex-1 bg-slate-900 flex items-center justify-center overflow-hidden p-4">
+              {previewEvidence.type.startsWith('image/') && (
+                <img src={previewUrl} alt={previewEvidence.name} className="max-w-full max-h-full object-contain rounded" />
+              )}
+              {previewEvidence.type === 'application/pdf' && (
+                <iframe src={previewUrl} title={previewEvidence.name} className="w-full h-full border-0 rounded bg-white" />
+              )}
+              {previewEvidence.type.startsWith('audio/') && (
+                <audio src={previewUrl} controls className="w-full max-w-md bg-white rounded-lg p-2" />
+              )}
+              {previewEvidence.type.startsWith('video/') && (
+                <video src={previewUrl} controls className="max-w-full max-h-full rounded" />
+              )}
+              {!previewEvidence.type.startsWith('image/') &&
+               previewEvidence.type !== 'application/pdf' &&
+               !previewEvidence.type.startsWith('audio/') &&
+               !previewEvidence.type.startsWith('video/') && (
+                <div className="text-center text-white space-y-3">
+                  <HelpCircle className="h-12 w-12 text-slate-500 mx-auto" />
+                  <p className="text-xs">このファイル形式のプレビューはブラウザでサポートされていません。</p>
+                  <a
+                    href={previewUrl}
+                    download={previewEvidence.name}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-900 hover:bg-indigo-950 text-white rounded-xl text-xs font-bold transition"
+                  >
+                    ファイルをダウンロード
+                  </a>
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 border-t bg-slate-50 flex justify-between items-center text-xs text-slate-500">
+              <span>サイズ: {(previewEvidence.size / 1024).toFixed(1)} KB</span>
+              <span>形式: {previewEvidence.type}</span>
+            </div>
           </div>
         </div>
       )}
