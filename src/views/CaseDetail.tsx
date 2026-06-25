@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, generateUUID, Case, Customer, Consultation, Evidence } from '../db';
+import { jsPDF } from 'jspdf';
 import { useLanguage } from '../context/LanguageContext';
 import { ArrowLeft, Edit2, User, Layers, Calendar, Clipboard, MessageSquare, Paperclip, Plus, Trash2, Eye, Upload, CheckCircle, CheckCircle2, Clock, AlertCircle, Ban, HelpCircle, ImageIcon, FileText, Music, Video, DollarSign, BookOpen, Download } from 'lucide-react';
 
@@ -35,10 +36,35 @@ export const CaseDetail: React.FC = () => {
   const [consultationNotes, setConsultationNotes] = useState('');
   const [consultationFiles, setConsultationFiles] = useState<FileList | null>(null);
 
+  const handleConsultationFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    setConsultationFiles(files);
+    if (files && files.length >= 2) {
+      const imageCount = Array.from(files).filter(f => f.type.startsWith('image/')).length;
+      if (imageCount >= 2) {
+        setConsultationMergedPdfName(`面接写真結合_${new Date().toISOString().split('T')[0]}.pdf`);
+        return;
+      }
+    }
+    setConsultationMergedPdfName('');
+    setShouldMergeConsultationImages(false);
+  };
+
   // Drag and drop uploader state
   const [isDragActive, setIsDragActive] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
-  const [evidenceTab, setEvidenceTab] = useState<'all' | 'image' | 'audio' | 'other'>('all');
+  const [evidenceTab, setEvidenceTab] = useState<'all' | 'image' | 'audio' | 'video' | 'pdf'>('all');
+
+  // Upload confirmation and merging states
+  const [pendingUploadFiles, setPendingUploadFiles] = useState<File[]>([]);
+  const [uploadFileNames, setUploadFileNames] = useState<string[]>([]);
+  const [isUploadConfirmOpen, setIsUploadConfirmOpen] = useState(false);
+  const [shouldMergeImages, setShouldMergeImages] = useState(false);
+  const [mergedPdfName, setMergedPdfName] = useState('');
+
+  // Consultation merging states
+  const [shouldMergeConsultationImages, setShouldMergeConsultationImages] = useState(false);
+  const [consultationMergedPdfName, setConsultationMergedPdfName] = useState('');
 
   // Reactively query case detail
   const kase = useLiveQuery(() => id ? db.cases.get(id) : Promise.resolve(undefined), [id]);
@@ -131,19 +157,74 @@ export const CaseDetail: React.FC = () => {
 
     // Save attached evidence files if any
     if (consultationFiles && consultationFiles.length > 0) {
-      for (let i = 0; i < consultationFiles.length; i++) {
-        const file = consultationFiles[i];
-        const newEvidence: Evidence = {
-          evidenceId: generateUUID(),
-          caseId: id,
-          name: file.name,
-          type: file.type,
-          size: file.size,
-          fileData: file,
-          createdAt: Date.now(),
-          syncStatus: 'pending',
-        };
-        await db.evidenceFiles.put(newEvidence);
+      const fileList = Array.from(consultationFiles);
+      const imageFiles = fileList.filter(f => f.type.startsWith('image/'));
+      
+      if (shouldMergeConsultationImages && imageFiles.length >= 2) {
+        const finalPdfName = consultationMergedPdfName.endsWith('.pdf') ? consultationMergedPdfName : `${consultationMergedPdfName}.pdf`;
+        try {
+          const pdfBlob = await mergeImagesToPdf(imageFiles, finalPdfName);
+          const newEvidence: Evidence = {
+            evidenceId: generateUUID(),
+            caseId: id,
+            name: finalPdfName,
+            type: 'application/pdf',
+            size: pdfBlob.size,
+            fileData: new File([pdfBlob], finalPdfName, { type: 'application/pdf' }),
+            createdAt: Date.now(),
+            syncStatus: 'pending',
+          };
+          await db.evidenceFiles.put(newEvidence);
+        } catch (err) {
+          console.error("Failed merging consultation images", err);
+          alert("写真のPDF結合に失敗しました。個別に追加します。");
+          for (let i = 0; i < imageFiles.length; i++) {
+            const file = imageFiles[i];
+            const newEvidence: Evidence = {
+              evidenceId: generateUUID(),
+              caseId: id,
+              name: file.name,
+              type: file.type,
+              size: file.size,
+              fileData: file,
+              createdAt: Date.now(),
+              syncStatus: 'pending',
+            };
+            await db.evidenceFiles.put(newEvidence);
+          }
+        }
+
+        // Save non-image files
+        const nonImageFiles = fileList.filter(f => !f.type.startsWith('image/'));
+        for (let i = 0; i < nonImageFiles.length; i++) {
+          const file = nonImageFiles[i];
+          const newEv: Evidence = {
+            evidenceId: generateUUID(),
+            caseId: id,
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            fileData: file,
+            createdAt: Date.now(),
+            syncStatus: 'pending',
+          };
+          await db.evidenceFiles.put(newEv);
+        }
+      } else {
+        for (let i = 0; i < fileList.length; i++) {
+          const file = fileList[i];
+          const newEvidence: Evidence = {
+            evidenceId: generateUUID(),
+            caseId: id,
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            fileData: file,
+            createdAt: Date.now(),
+            syncStatus: 'pending',
+          };
+          await db.evidenceFiles.put(newEvidence);
+        }
       }
     }
 
@@ -151,6 +232,8 @@ export const CaseDetail: React.FC = () => {
     setConsultationSummary('');
     setConsultationNotes('');
     setConsultationFiles(null);
+    setShouldMergeConsultationImages(false);
+    setConsultationMergedPdfName('');
     setIsAddConsultationOpen(false);
   };
 
@@ -165,40 +248,104 @@ export const CaseDetail: React.FC = () => {
     }
   };
 
-  const handleDrop = async (e: React.DragEvent) => {
+  const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragActive(false);
 
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      await handleFilesUpload(e.dataTransfer.files);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      prepareUpload(Array.from(e.dataTransfer.files));
     }
   };
 
-  const handleFileInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      await handleFilesUpload(e.target.files);
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      prepareUpload(Array.from(e.target.files));
     }
   };
 
-  const handleFilesUpload = async (fileList: FileList) => {
-    if (!id) return;
-    for (let i = 0; i < fileList.length; i++) {
-      const file = fileList[i];
-      const newEvidence: Evidence = {
-        evidenceId: generateUUID(),
-        caseId: id,
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        fileData: file,
-        createdAt: Date.now(),
-        syncStatus: 'pending',
-      };
-      await db.evidenceFiles.put(newEvidence);
+  const prepareUpload = (files: File[]) => {
+    setPendingUploadFiles(files);
+    setUploadFileNames(files.map(f => f.name));
+    setShouldMergeImages(false);
+    
+    const imageCount = files.filter(f => f.type.startsWith('image/')).length;
+    if (imageCount >= 2) {
+      setMergedPdfName(`画像結合_${new Date().toISOString().split('T')[0]}.pdf`);
+    } else {
+      setMergedPdfName('');
     }
-    setUploadSuccess(true);
-    setTimeout(() => setUploadSuccess(false), 3000);
+    
+    setIsUploadConfirmOpen(true);
+  };
+
+  const handleConfirmUploadSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id || pendingUploadFiles.length === 0) return;
+
+    try {
+      const imageFiles = pendingUploadFiles.filter(f => f.type.startsWith('image/'));
+      
+      if (shouldMergeImages && imageFiles.length >= 2) {
+        const finalPdfName = mergedPdfName.endsWith('.pdf') ? mergedPdfName : `${mergedPdfName}.pdf`;
+        const pdfBlob = await mergeImagesToPdf(imageFiles, finalPdfName);
+        
+        const newEvidence: Evidence = {
+          evidenceId: generateUUID(),
+          caseId: id,
+          name: finalPdfName,
+          type: 'application/pdf',
+          size: pdfBlob.size,
+          fileData: new File([pdfBlob], finalPdfName, { type: 'application/pdf' }),
+          createdAt: Date.now(),
+          syncStatus: 'pending',
+        };
+        await db.evidenceFiles.put(newEvidence);
+
+        const nonImageFiles = pendingUploadFiles.filter(f => !f.type.startsWith('image/'));
+        for (let i = 0; i < nonImageFiles.length; i++) {
+          const file = nonImageFiles[i];
+          const customName = uploadFileNames[pendingUploadFiles.indexOf(file)] || file.name;
+          const newEv: Evidence = {
+            evidenceId: generateUUID(),
+            caseId: id,
+            name: customName,
+            type: file.type,
+            size: file.size,
+            fileData: file,
+            createdAt: Date.now(),
+            syncStatus: 'pending',
+          };
+          await db.evidenceFiles.put(newEv);
+        }
+      } else {
+        for (let i = 0; i < pendingUploadFiles.length; i++) {
+          const file = pendingUploadFiles[i];
+          const customName = uploadFileNames[i] || file.name;
+          const newEvidence: Evidence = {
+            evidenceId: generateUUID(),
+            caseId: id,
+            name: customName,
+            type: file.type,
+            size: file.size,
+            fileData: file,
+            createdAt: Date.now(),
+            syncStatus: 'pending',
+          };
+          await db.evidenceFiles.put(newEvidence);
+        }
+      }
+      
+      setUploadSuccess(true);
+      setTimeout(() => setUploadSuccess(false), 3000);
+    } catch (err) {
+      console.error("Failed to upload files", err);
+      alert("ファイルの保存に失敗しました。");
+    } finally {
+      setIsUploadConfirmOpen(false);
+      setPendingUploadFiles([]);
+      setUploadFileNames([]);
+    }
   };
 
   const handleDeleteEvidence = async (evidenceId: string) => {
@@ -573,24 +720,26 @@ export const CaseDetail: React.FC = () => {
 
             {/* Tab navigation */}
             <div className="flex border-b border-slate-100 mb-4">
-              {(['all', 'image', 'audio', 'other'] as const).map((tab) => {
+              {(['all', 'image', 'audio', 'video', 'pdf'] as const).map((tab) => {
                 let label = 'すべて';
                 if (tab === 'image') label = '写真';
                 if (tab === 'audio') label = '音声';
-                if (tab === 'other') label = '書類・他';
+                if (tab === 'video') label = '動画';
+                if (tab === 'pdf') label = '書類PDF';
 
                 const count = associatedEvidence.filter(ev => {
                   if (tab === 'all') return true;
                   if (tab === 'image') return ev.type.startsWith('image/');
                   if (tab === 'audio') return ev.type.startsWith('audio/');
-                  return !ev.type.startsWith('image/') && !ev.type.startsWith('audio/');
+                  if (tab === 'video') return ev.type.startsWith('video/');
+                  return ev.type === 'application/pdf' || (!ev.type.startsWith('image/') && !ev.type.startsWith('audio/') && !ev.type.startsWith('video/'));
                 }).length;
 
                 return (
                   <button
                     key={tab}
                     onClick={() => setEvidenceTab(tab)}
-                    className={`flex-1 pb-2 text-[10px] font-bold border-b-2 text-center transition ${
+                    className={`flex-1 pb-2 text-[9px] font-bold border-b-2 text-center transition ${
                       evidenceTab === tab
                         ? 'border-indigo-900 text-indigo-900'
                         : 'border-transparent text-slate-400 hover:text-slate-600'
@@ -608,7 +757,8 @@ export const CaseDetail: React.FC = () => {
                 if (evidenceTab === 'all') return true;
                 if (evidenceTab === 'image') return ev.type.startsWith('image/');
                 if (evidenceTab === 'audio') return ev.type.startsWith('audio/');
-                return !ev.type.startsWith('image/') && !ev.type.startsWith('audio/');
+                if (evidenceTab === 'video') return ev.type.startsWith('video/');
+                return ev.type === 'application/pdf' || (!ev.type.startsWith('image/') && !ev.type.startsWith('audio/') && !ev.type.startsWith('video/'));
               });
 
               if (filteredList.length === 0) {
@@ -907,13 +1057,44 @@ export const CaseDetail: React.FC = () => {
                 <input
                   type="file"
                   multiple
-                  onChange={(e) => setConsultationFiles(e.target.files)}
+                  onChange={handleConsultationFileChange}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
                 />
                 <p className="text-[9px] text-slate-400 mt-1 font-medium">
                   対応形式: PDF, 画像, 音声, 動画。複数選択可能。ここで追加されたファイルは案件の証拠一覧にも自動的に登録されます。
                 </p>
               </div>
+
+              {/* Consultation merging option */}
+              {consultationFiles && Array.from(consultationFiles).filter(f => f.type.startsWith('image/')).length >= 2 && (
+                <div className="p-3 bg-indigo-50 border border-indigo-150 rounded-xl space-y-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={shouldMergeConsultationImages}
+                      onChange={(e) => setShouldMergeConsultationImages(e.target.checked)}
+                      className="rounded border-slate-300 text-indigo-900 focus:ring-indigo-500 h-4 w-4"
+                    />
+                    <span className="text-xs font-bold text-indigo-900">
+                      添付された写真（{Array.from(consultationFiles).filter(f => f.type.startsWith('image/')).length}枚）を1つのPDFに結合して保存する
+                    </span>
+                  </label>
+                  
+                  {shouldMergeConsultationImages && (
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold text-indigo-950 uppercase tracking-wider block">結合後のPDFファイル名</label>
+                      <input
+                        type="text"
+                        required
+                        value={consultationMergedPdfName}
+                        onChange={(e) => setConsultationMergedPdfName(e.target.value)}
+                        placeholder="例: 面接写真結合.pdf"
+                        className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="flex justify-end gap-2 pt-2">
                 <button
@@ -928,6 +1109,107 @@ export const CaseDetail: React.FC = () => {
                   className="px-4 py-2 bg-indigo-900 text-white text-xs font-bold rounded-xl hover:bg-indigo-950 transition active:scale-95"
                 >
                   保存
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Upload Confirmation Modal */}
+      {isUploadConfirmOpen && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white border border-slate-100 rounded-2xl w-full max-w-lg shadow-xl overflow-hidden p-6 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-base font-black text-slate-800 tracking-tight mb-4">
+              アップロードファイルの確認・編集
+            </h3>
+            
+            <form onSubmit={handleConfirmUploadSubmit} className="space-y-4">
+              {/* Checkbox for merging images to PDF */}
+              {pendingUploadFiles.filter(f => f.type.startsWith('image/')).length >= 2 && (
+                <div className="p-3 bg-indigo-50 border border-indigo-150 rounded-xl space-y-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={shouldMergeImages}
+                      onChange={(e) => setShouldMergeImages(e.target.checked)}
+                      className="rounded border-slate-300 text-indigo-900 focus:ring-indigo-500 h-4 w-4"
+                    />
+                    <span className="text-xs font-bold text-indigo-900">
+                      複数の写真（{pendingUploadFiles.filter(f => f.type.startsWith('image/')).length}枚）を1つのPDFに結合して保存する
+                    </span>
+                  </label>
+                  
+                  {shouldMergeImages && (
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold text-indigo-950 uppercase tracking-wider block">結合後のPDFファイル名</label>
+                      <input
+                        type="text"
+                        required
+                        value={mergedPdfName}
+                        onChange={(e) => setMergedPdfName(e.target.value)}
+                        placeholder="例: グアテマラ面接写真.pdf"
+                        className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Edit file names individually */}
+              <div className="space-y-3">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">アップロードするファイル</label>
+                <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+                  {pendingUploadFiles.map((file, idx) => {
+                    const isImage = file.type.startsWith('image/');
+                    const showInput = !shouldMergeImages || !isImage;
+                    
+                    if (!showInput) return null;
+
+                    return (
+                      <div key={idx} className="p-2.5 bg-slate-50 border rounded-xl flex flex-col gap-1 text-xs">
+                        <div className="flex justify-between items-center text-[10px] text-slate-400 font-bold">
+                          <span className="truncate max-w-[200px]">{file.name}</span>
+                          <span>{(file.size / 1024).toFixed(1)} KB</span>
+                        </div>
+                        <input
+                          type="text"
+                          required
+                          value={uploadFileNames[idx] || ''}
+                          onChange={(e) => {
+                            const newNames = [...uploadFileNames];
+                            newNames[idx] = e.target.value;
+                            setUploadFileNames(newNames);
+                          }}
+                          className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white mt-1"
+                        />
+                      </div>
+                    );
+                  })}
+                  {shouldMergeImages && pendingUploadFiles.filter(f => !f.type.startsWith('image/')).length === 0 && (
+                    <p className="text-xs text-slate-500 text-center py-4 font-medium">
+                      写真はすべて1つのPDFに結合され、個別のファイルとしてはアップロードされません。
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsUploadConfirmOpen(false);
+                    setPendingUploadFiles([]);
+                  }}
+                  className="px-4 py-2 border border-slate-200 text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-50 transition active:scale-95"
+                >
+                  キャンセル
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-indigo-900 text-white text-xs font-bold rounded-xl hover:bg-indigo-950 transition active:scale-95"
+                >
+                  保存して追加
                 </button>
               </div>
             </form>
@@ -1054,4 +1336,59 @@ const ImageThumbnail: React.FC<{
       </div>
     </div>
   );
+};
+
+// PDF generation and helpers
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = (error) => reject(error);
+  });
+};
+
+const getImageDimensions = (base64: string): Promise<{ width: number; height: number }> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = base64;
+    img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+  });
+};
+
+const mergeImagesToPdf = async (files: File[], pdfName: string): Promise<Blob> => {
+  const doc = new jsPDF();
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    try {
+      const base64 = await fileToBase64(file);
+      const dims = await getImageDimensions(base64);
+      
+      const pdfWidth = doc.internal.pageSize.getWidth();
+      const pdfHeight = doc.internal.pageSize.getHeight();
+      
+      let width = dims.width;
+      let height = dims.height;
+      const ratio = Math.min(pdfWidth / width, pdfHeight / height);
+      width = width * ratio;
+      height = height * ratio;
+      
+      const x = (pdfWidth - width) / 2;
+      const y = (pdfHeight - height) / 2;
+      
+      if (i > 0) {
+        doc.addPage();
+      }
+      
+      let format = 'JPEG';
+      const typeLower = file.type.toLowerCase();
+      if (typeLower === 'image/png') format = 'PNG';
+      else if (typeLower === 'image/webp') format = 'WEBP';
+      
+      doc.addImage(base64, format, x, y, width, height);
+    } catch (err) {
+      console.error("Failed adding image to PDF page", err);
+    }
+  }
+  return doc.output('blob');
 };

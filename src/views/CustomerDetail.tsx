@@ -15,7 +15,7 @@ export const CustomerDetail: React.FC = () => {
   const [isAddCaseOpen, setIsAddCaseOpen] = useState(false);
   const [previewEvidence, setPreviewEvidence] = useState<Evidence | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [evidenceTab, setEvidenceTab] = useState<'all' | 'image' | 'audio' | 'other'>('all');
+  const [evidenceTab, setEvidenceTab] = useState<'all' | 'image' | 'audio' | 'video' | 'pdf'>('all');
 
   // Form states (Customer Edit)
   const [name, setName] = useState('');
@@ -464,24 +464,26 @@ export const CustomerDetail: React.FC = () => {
 
             {/* Tab navigation */}
             <div className="flex border-b border-slate-100 mb-4">
-              {(['all', 'image', 'audio', 'other'] as const).map((tab) => {
+              {(['all', 'image', 'audio', 'video', 'pdf'] as const).map((tab) => {
                 let label = 'すべて';
                 if (tab === 'image') label = '写真';
                 if (tab === 'audio') label = '音声';
-                if (tab === 'other') label = '書類・他';
+                if (tab === 'video') label = '動画';
+                if (tab === 'pdf') label = '書類PDF';
 
                 const count = associatedEvidence.filter(ev => {
                   if (tab === 'all') return true;
                   if (tab === 'image') return ev.type.startsWith('image/');
                   if (tab === 'audio') return ev.type.startsWith('audio/');
-                  return !ev.type.startsWith('image/') && !ev.type.startsWith('audio/');
+                  if (tab === 'video') return ev.type.startsWith('video/');
+                  return ev.type === 'application/pdf' || (!ev.type.startsWith('image/') && !ev.type.startsWith('audio/') && !ev.type.startsWith('video/'));
                 }).length;
 
                 return (
                   <button
                     key={tab}
                     onClick={() => setEvidenceTab(tab)}
-                    className={`flex-1 pb-2 text-[10px] font-bold border-b-2 text-center transition ${
+                    className={`flex-1 pb-2 text-[9px] font-bold border-b-2 text-center transition ${
                       evidenceTab === tab
                         ? 'border-indigo-900 text-indigo-900'
                         : 'border-transparent text-slate-400 hover:text-slate-600'
@@ -499,7 +501,8 @@ export const CustomerDetail: React.FC = () => {
                 if (evidenceTab === 'all') return true;
                 if (evidenceTab === 'image') return ev.type.startsWith('image/');
                 if (evidenceTab === 'audio') return ev.type.startsWith('audio/');
-                return !ev.type.startsWith('image/') && !ev.type.startsWith('audio/');
+                if (evidenceTab === 'video') return ev.type.startsWith('video/');
+                return ev.type === 'application/pdf' || (!ev.type.startsWith('image/') && !ev.type.startsWith('audio/') && !ev.type.startsWith('video/'));
               });
 
               if (filteredList.length === 0) {
