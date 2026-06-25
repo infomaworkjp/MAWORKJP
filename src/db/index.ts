@@ -10,7 +10,7 @@ export interface Customer {
   address: string; // 住所
   referrer: string; // 紹介者
   notes: string; // メメモ
-  status: 'active' | 'inactive';
+  status: 'active' | 'inactive' | 'inquiry' | 'waiting_payment' | 'in_progress' | 'waiting_documents' | 'translating' | 'completed';
   mainCategory?: string; // 主な目的・カテゴリー
   createdAt: number;
   updatedAt: number;

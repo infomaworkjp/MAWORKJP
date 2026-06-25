@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, generateUUID, Customer } from '../db';
 import { useLanguage } from '../context/LanguageContext';
-import { Search, Plus, Edit2, Trash2, Mail, Phone, Tag, Clipboard, CheckCircle, XCircle, MapPin, UserCheck, Calendar, Globe } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Mail, Phone, Tag, Clipboard, CheckCircle, XCircle, MapPin, UserCheck, Calendar, Globe, HelpCircle, Clock, FileText } from 'lucide-react';
 
 export const Customers: React.FC = () => {
   const { t } = useLanguage();
@@ -30,7 +30,7 @@ export const Customers: React.FC = () => {
   const [address, setAddress] = useState('');
   const [referrer, setReferrer] = useState('');
   const [notes, setNotes] = useState('');
-  const [status, setStatus] = useState<'active' | 'inactive'>('active');
+  const [status, setStatus] = useState<Customer['status']>('inquiry');
   const [mainCategory, setMainCategory] = useState('書類のみの翻訳');
 
   const handleAdd = async (e: React.FormEvent) => {
@@ -122,7 +122,7 @@ export const Customers: React.FC = () => {
     setAddress('');
     setReferrer('');
     setNotes('');
-    setStatus('active');
+    setStatus('inquiry');
     setMainCategory('書類のみの翻訳');
     setCurrentCustomer(null);
   };
@@ -319,23 +319,61 @@ export const Customers: React.FC = () => {
                       )}
                     </td>
                     <td className="p-4">
-                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                        c.status === 'active'
-                          ? 'bg-emerald-50 text-emerald-700'
-                          : 'bg-slate-100 text-slate-500'
-                      }`}>
-                        {c.status === 'active' ? (
-                          <>
-                            <CheckCircle className="h-3 w-3" />
-                            <span>{t('active')}</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="h-3 w-3" />
-                            <span>{t('inactive')}</span>
-                          </>
-                        )}
-                      </span>
+                      {(() => {
+                        switch (c.status) {
+                          case 'inquiry':
+                            return (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-100">
+                                <HelpCircle className="h-3 w-3" />
+                                <span>{t('inquiry')}</span>
+                              </span>
+                            );
+                          case 'waiting_payment':
+                            return (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-100">
+                                <Clock className="h-3 w-3" />
+                                <span>{t('waiting_payment')}</span>
+                              </span>
+                            );
+                          case 'in_progress':
+                          case 'active':
+                            return (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
+                                <CheckCircle className="h-3 w-3" />
+                                <span>{c.status === 'active' ? t('active') : t('in_progress')}</span>
+                              </span>
+                            );
+                          case 'waiting_documents':
+                            return (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-100">
+                                <FileText className="h-3 w-3" />
+                                <span>{t('waiting_documents')}</span>
+                              </span>
+                            );
+                          case 'translating':
+                            return (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                <Globe className="h-3 w-3" />
+                                <span>{t('translating')}</span>
+                              </span>
+                            );
+                          case 'completed':
+                            return (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-teal-50 text-teal-700 border border-teal-100">
+                                <CheckCircle className="h-3 w-3" />
+                                <span>{t('completed')}</span>
+                              </span>
+                            );
+                          case 'inactive':
+                          default:
+                            return (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
+                                <XCircle className="h-3 w-3" />
+                                <span>{t('inactive')}</span>
+                              </span>
+                            );
+                        }
+                      })()}
                       {c.syncStatus === 'pending' && (
                         <span className="ml-2 text-[9px] text-amber-500 font-semibold bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded-full">
                           未同期
@@ -482,8 +520,14 @@ export const Customers: React.FC = () => {
                     onChange={(e) => setStatus(e.target.value as any)}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
                   >
-                    <option value="active">{t('active')}</option>
+                    <option value="inquiry">{t('inquiry')}</option>
+                    <option value="waiting_payment">{t('waiting_payment')}</option>
+                    <option value="in_progress">{t('in_progress')}</option>
+                    <option value="waiting_documents">{t('waiting_documents')}</option>
+                    <option value="translating">{t('translating')}</option>
+                    <option value="completed">{t('completed')}</option>
                     <option value="inactive">{t('inactive')}</option>
+                    {status === 'active' && <option value="active">{t('active')}</option>}
                   </select>
                 </div>
               </div>
@@ -626,8 +670,14 @@ export const Customers: React.FC = () => {
                     onChange={(e) => setStatus(e.target.value as any)}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
                   >
-                    <option value="active">{t('active')}</option>
+                    <option value="inquiry">{t('inquiry')}</option>
+                    <option value="waiting_payment">{t('waiting_payment')}</option>
+                    <option value="in_progress">{t('in_progress')}</option>
+                    <option value="waiting_documents">{t('waiting_documents')}</option>
+                    <option value="translating">{t('translating')}</option>
+                    <option value="completed">{t('completed')}</option>
                     <option value="inactive">{t('inactive')}</option>
+                    {status === 'active' && <option value="active">{t('active')}</option>}
                   </select>
                 </div>
               </div>

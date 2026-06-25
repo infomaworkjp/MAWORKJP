@@ -26,7 +26,7 @@ export const CustomerDetail: React.FC = () => {
   const [address, setAddress] = useState('');
   const [referrer, setReferrer] = useState('');
   const [notes, setNotes] = useState('');
-  const [status, setStatus] = useState<'active' | 'inactive'>('active');
+  const [status, setStatus] = useState<Customer['status']>('inquiry');
   const [mainCategory, setMainCategory] = useState('書類のみの翻訳');
 
   // Form states (New Case)
@@ -282,23 +282,61 @@ export const CustomerDetail: React.FC = () => {
           <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm space-y-6">
             <div className="space-y-3">
               <div className="flex flex-wrap gap-2 items-center">
-                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                  customer.status === 'active'
-                    ? 'bg-emerald-50 text-emerald-700'
-                    : 'bg-slate-100 text-slate-500'
-                }`}>
-                  {customer.status === 'active' ? (
-                    <>
-                      <CheckCircle className="h-3 w-3" />
-                      <span>有効顧客</span>
-                    </>
-                  ) : (
-                    <>
-                      <XCircle className="h-3 w-3" />
-                      <span>無効顧客</span>
-                    </>
-                  )}
-                </span>
+                {(() => {
+                  switch (customer.status) {
+                    case 'inquiry':
+                      return (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-100">
+                          <HelpCircle className="h-3 w-3" />
+                          <span>問い合わせ</span>
+                        </span>
+                      );
+                    case 'waiting_payment':
+                      return (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-100">
+                          <Clock className="h-3 w-3" />
+                          <span>入金待ち</span>
+                        </span>
+                      );
+                    case 'in_progress':
+                    case 'active':
+                      return (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
+                          <CheckCircle className="h-3 w-3" />
+                          <span>{customer.status === 'active' ? '有効顧客' : '進行中'}</span>
+                        </span>
+                      );
+                    case 'waiting_documents':
+                      return (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-100">
+                          <FileText className="h-3 w-3" />
+                          <span>追加資料待ち</span>
+                        </span>
+                      );
+                    case 'translating':
+                      return (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                          <Globe className="h-3 w-3" />
+                          <span>翻訳中</span>
+                        </span>
+                      );
+                    case 'completed':
+                      return (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-teal-50 text-teal-700 border border-teal-100">
+                          <CheckCircle className="h-3 w-3" />
+                          <span>完了</span>
+                        </span>
+                      );
+                    case 'inactive':
+                    default:
+                      return (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
+                          <XCircle className="h-3 w-3" />
+                          <span>無効顧客</span>
+                        </span>
+                      );
+                  }
+                })()}
                 <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black ${
                   customer.mainCategory === '法律関係' ? 'bg-purple-50 text-purple-700 border border-purple-100' :
                   customer.mainCategory === '書類のみの翻訳' ? 'bg-blue-50 text-blue-700 border border-blue-100' :
@@ -769,8 +807,14 @@ export const CustomerDetail: React.FC = () => {
                     onChange={(e) => setStatus(e.target.value as any)}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
                   >
-                    <option value="active">有効</option>
+                    <option value="inquiry">問い合わせ</option>
+                    <option value="waiting_payment">入金待ち</option>
+                    <option value="in_progress">進行中</option>
+                    <option value="waiting_documents">追加資料待ち</option>
+                    <option value="translating">翻訳中</option>
+                    <option value="completed">完了</option>
                     <option value="inactive">無効</option>
+                    {status === 'active' && <option value="active">有効</option>}
                   </select>
                 </div>
               </div>

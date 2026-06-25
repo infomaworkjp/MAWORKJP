@@ -63,6 +63,10 @@ const translations = {
     other: 'その他',
     active: '有効',
     inactive: '無効',
+    inquiry: '問い合わせ',
+    waiting_payment: '入金待ち',
+    waiting_documents: '追加資料待ち',
+    translating: '翻訳中',
     
     // Cases
     caseTitle: '案件名',
@@ -147,6 +151,10 @@ const translations = {
     other: 'Otro',
     active: 'Activo',
     inactive: 'Inactivo',
+    inquiry: 'Consulta',
+    waiting_payment: 'Esperando Pago',
+    waiting_documents: 'Esperando Documentos',
+    translating: 'Traduciendo',
     
     // Cases
     caseTitle: 'Título del Caso',
