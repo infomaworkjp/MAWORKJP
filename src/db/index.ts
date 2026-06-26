@@ -59,7 +59,7 @@ export interface Evidence {
   size: number; // ファイルサイズ
   fileData?: Blob; // ファイルデータ (BLOB)
   cloudStorageUrl?: string;
-  fileCategory?: 'original' | 'translated' | 'other'; // ファイルカテゴリー (原文書/訳文書/その他)
+  fileCategory?: '原文書' | '訳文書' | 'その他'; // ファイルカテゴリー (原文書/訳文書/その他)
   relatedFileId?: string; // 関連するファイルID (原文書に対して訳文書をペアリング)
   createdAt: number;
   syncStatus: 'pending' | 'synced';

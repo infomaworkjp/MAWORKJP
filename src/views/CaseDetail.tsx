@@ -30,7 +30,8 @@ export const CaseDetail: React.FC = () => {
   const [translationLanguageFrom, setTranslationLanguageFrom] = useState('スペイン語');
   const [translationLanguageTo, setTranslationLanguageTo] = useState('日本語');
   const [deadline, setDeadline] = useState('');
-  const [uploadCategory, setUploadCategory] = useState<'original' | 'translated' | 'other'>('other');
+  const [uploadCategory, setUploadCategory] = useState<'原文書' | '訳文書' | 'その他'>('その他');
+  const [uploadFileCategories, setUploadFileCategories] = useState<('原文書' | '訳文書' | 'その他')[]>([]);
 
   // Form states (New Consultation)
   const [consultationDate, setConsultationDate] = useState(new Date().toISOString().split('T')[0]);
@@ -283,9 +284,10 @@ export const CaseDetail: React.FC = () => {
     }
   };
 
-  const prepareUpload = (files: File[], cat: 'original' | 'translated' | 'other' = 'other') => {
+  const prepareUpload = (files: File[], cat: '原文書' | '訳文書' | 'その他' = 'その他') => {
     setPendingUploadFiles(files);
     setUploadFileNames(files.map(f => f.name));
+    setUploadFileCategories(files.map(() => cat));
     setShouldMergeImages(false);
     setUploadCategory(cat);
     
@@ -326,7 +328,8 @@ export const CaseDetail: React.FC = () => {
         const nonImageFiles = pendingUploadFiles.filter(f => !f.type.startsWith('image/'));
         for (let i = 0; i < nonImageFiles.length; i++) {
           const file = nonImageFiles[i];
-          const customName = uploadFileNames[pendingUploadFiles.indexOf(file)] || file.name;
+          const originalIdx = pendingUploadFiles.indexOf(file);
+          const customName = uploadFileNames[originalIdx] || file.name;
           const newEv: Evidence = {
             evidenceId: generateUUID(),
             caseId: id,
@@ -334,7 +337,7 @@ export const CaseDetail: React.FC = () => {
             type: file.type,
             size: file.size,
             fileData: file,
-            fileCategory: uploadCategory,
+            fileCategory: uploadFileCategories[originalIdx] || uploadCategory,
             createdAt: Date.now(),
             syncStatus: 'pending',
           };
@@ -351,7 +354,7 @@ export const CaseDetail: React.FC = () => {
             type: file.type,
             size: file.size,
             fileData: file,
-            fileCategory: uploadCategory,
+            fileCategory: uploadFileCategories[i] || uploadCategory,
             createdAt: Date.now(),
             syncStatus: 'pending',
           };
@@ -368,6 +371,7 @@ export const CaseDetail: React.FC = () => {
       setIsUploadConfirmOpen(false);
       setPendingUploadFiles([]);
       setUploadFileNames([]);
+      setUploadFileCategories([]);
     }
   };
 
@@ -500,9 +504,11 @@ export const CaseDetail: React.FC = () => {
     if (type.startsWith('audio/')) return <Music className="h-5 w-5 text-amber-500" />;
     if (type.startsWith('video/')) return <Video className="h-5 w-5 text-indigo-500" />;
     return <Paperclip className="h-5 w-5 text-slate-400" />;
+  };
+
   const renderTranslationCase = () => {
-    const originalFiles = associatedEvidence.filter(ev => ev.fileCategory === 'original');
-    const translatedFiles = associatedEvidence.filter(ev => ev.fileCategory === 'translated');
+    const originalFiles = associatedEvidence.filter(ev => ev.fileCategory === '原文書' || ev.fileCategory === 'original');
+    const translatedFiles = associatedEvidence.filter(ev => ev.fileCategory === '訳文書' || ev.fileCategory === 'translated');
 
     // Mailto link for client submission
     const clientEmail = customer?.email || '';
@@ -687,7 +693,7 @@ export const CaseDetail: React.FC = () => {
                 type="file"
                 multiple
                 onChange={(e) => {
-                  if (e.target.files) prepareUpload(Array.from(e.target.files), 'original');
+                  if (e.target.files) prepareUpload(Array.from(e.target.files), '原文書');
                 }}
                 className="hidden"
               />
@@ -786,11 +792,31 @@ export const CaseDetail: React.FC = () => {
                   <span>翻訳作業進捗率</span>
                   <span className="text-indigo-900 font-black text-sm">{(kase.translationProgress !== undefined ? kase.translationProgress : kase.progress)}%</span>
                 </div>
-                <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden relative">
                   <div
-                    className="h-full bg-indigo-900 rounded-full transition-all duration-500"
+                    className="h-full bg-indigo-900 rounded-full transition-all duration-300"
                     style={{ width: `${(kase.translationProgress !== undefined ? kase.translationProgress : kase.progress)}%` }}
                   />
+                </div>
+              </div>
+
+              {/* Interactive slider */}
+              <div className="space-y-1">
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  value={kase.translationProgress !== undefined ? kase.translationProgress : kase.progress}
+                  onChange={(e) => handleProgressChange(parseInt(e.target.value))}
+                  className="w-full h-1.5 bg-slate-150 rounded-lg appearance-none cursor-pointer accent-indigo-900"
+                />
+                <div className="flex justify-between text-[9px] text-slate-400 font-bold px-0.5">
+                  <span>0%</span>
+                  <span>25%</span>
+                  <span>50%</span>
+                  <span>75%</span>
+                  <span>100%</span>
                 </div>
               </div>
 
@@ -845,7 +871,7 @@ export const CaseDetail: React.FC = () => {
                 type="file"
                 multiple
                 onChange={(e) => {
-                  if (e.target.files) prepareUpload(Array.from(e.target.files), 'translated');
+                  if (e.target.files) prepareUpload(Array.from(e.target.files), '訳文書');
                 }}
                 className="hidden"
               />
@@ -1275,6 +1301,15 @@ export const CaseDetail: React.FC = () => {
                           }`}>
                             {ev.syncStatus === 'synced' ? '● 同期済' : '● 未同期'}
                           </span>
+                          {ev.fileCategory && ev.fileCategory !== 'その他' && (
+                            <span className={`inline-flex items-center text-[8px] font-bold px-1.5 py-0.5 rounded ${
+                              ev.fileCategory === '原文書' || ev.fileCategory === 'original'
+                                ? 'bg-indigo-50 text-indigo-700'
+                                : 'bg-emerald-50 text-emerald-700'
+                            }`}>
+                              {ev.fileCategory === 'original' ? '原文書' : ev.fileCategory === 'translated' ? '訳文書' : ev.fileCategory}
+                            </span>
+                          )}
                         </div>
                       </div>
 
@@ -1659,16 +1694,30 @@ export const CaseDetail: React.FC = () => {
                   </label>
                   
                   {shouldMergeImages && (
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-bold text-indigo-950 uppercase tracking-wider block">結合後のPDFファイル名</label>
-                      <input
-                        type="text"
-                        required
-                        value={mergedPdfName}
-                        onChange={(e) => setMergedPdfName(e.target.value)}
-                        placeholder="例: グアテマラ面接写真.pdf"
-                        className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-                      />
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-indigo-950 uppercase tracking-wider block">結合後のPDFファイル名</label>
+                        <input
+                          type="text"
+                          required
+                          value={mergedPdfName}
+                          onChange={(e) => setMergedPdfName(e.target.value)}
+                          placeholder="例: グアテマラ面接写真.pdf"
+                          className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-indigo-950 uppercase tracking-wider block">ファイルカテゴリー</label>
+                        <select
+                          value={uploadCategory}
+                          onChange={(e) => setUploadCategory(e.target.value as '原文書' | '訳文書' | 'その他')}
+                          className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                        >
+                          <option value="原文書">原文書</option>
+                          <option value="訳文書">訳文書</option>
+                          <option value="その他">その他</option>
+                        </select>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1685,22 +1734,43 @@ export const CaseDetail: React.FC = () => {
                     if (!showInput) return null;
 
                     return (
-                      <div key={idx} className="p-2.5 bg-slate-50 border rounded-xl flex flex-col gap-1 text-xs">
+                      <div key={idx} className="p-2.5 bg-slate-50 border rounded-xl flex flex-col gap-1.5 text-xs">
                         <div className="flex justify-between items-center text-[10px] text-slate-400 font-bold">
                           <span className="truncate max-w-[200px]">{file.name}</span>
                           <span>{(file.size / 1024).toFixed(1)} KB</span>
                         </div>
-                        <input
-                          type="text"
-                          required
-                          value={uploadFileNames[idx] || ''}
-                          onChange={(e) => {
-                            const newNames = [...uploadFileNames];
-                            newNames[idx] = e.target.value;
-                            setUploadFileNames(newNames);
-                          }}
-                          className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white mt-1"
-                        />
+                        <div className="grid grid-cols-2 gap-2 mt-1">
+                          <div className="space-y-1">
+                            <label className="text-[8px] font-bold text-slate-400 uppercase tracking-wider block">ファイル名</label>
+                            <input
+                              type="text"
+                              required
+                              value={uploadFileNames[idx] || ''}
+                              onChange={(e) => {
+                                const newNames = [...uploadFileNames];
+                                newNames[idx] = e.target.value;
+                                setUploadFileNames(newNames);
+                              }}
+                              className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[8px] font-bold text-slate-400 uppercase tracking-wider block">カテゴリー</label>
+                            <select
+                              value={uploadFileCategories[idx] || 'その他'}
+                              onChange={(e) => {
+                                const newCategories = [...uploadFileCategories];
+                                newCategories[idx] = e.target.value as '原文書' | '訳文書' | 'その他';
+                                setUploadFileCategories(newCategories);
+                              }}
+                              className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                            >
+                              <option value="原文書">原文書</option>
+                              <option value="訳文書">訳文書</option>
+                              <option value="その他">その他</option>
+                            </select>
+                          </div>
+                        </div>
                       </div>
                     );
                   })}
