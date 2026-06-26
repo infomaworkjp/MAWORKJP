@@ -1932,6 +1932,33 @@ export const CaseDetail: React.FC = () => {
     );
   };
 
+  if (kase === undefined) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 border-4 border-indigo-900/30 border-t-indigo-900 rounded-full animate-spin" />
+          <span className="text-xs font-bold text-slate-500">案件データを読み込み中...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (kase === null) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center">
+        <h2 className="text-xl font-black text-slate-800 tracking-tight">案件が見つかりません</h2>
+        <p className="text-xs text-slate-400 mt-2">削除されたか、IDが正しくない可能性があります。</p>
+        <button
+          onClick={() => navigate('/cases')}
+          className="mt-6 inline-flex items-center gap-1.5 px-4 py-2.5 bg-indigo-900 text-white text-xs font-bold rounded-xl hover:bg-indigo-950 transition active:scale-95 shadow-sm"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span>案件一覧に戻る</span>
+        </button>
+      </div>
+    );
+  }
+
   return (
     <>
       {kase.category === '翻訳' ? (
