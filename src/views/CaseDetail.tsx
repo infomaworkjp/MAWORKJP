@@ -1016,6 +1016,19 @@ export const CaseDetail: React.FC = () => {
     return `${hours}時間${mins}分`;
   };
 
+  const getInterpretationDurationHours = (startTime?: string, endTime?: string): number => {
+    if (!startTime || !endTime) return 0;
+    const [sh, sm] = startTime.split(':').map(Number);
+    const [eh, em] = endTime.split(':').map(Number);
+    if (isNaN(sh) || isNaN(sm) || isNaN(eh) || isNaN(em)) return 0;
+    
+    const startMins = sh * 60 + sm;
+    const endMins = eh * 60 + em;
+    const diff = endMins - startMins;
+    
+    return diff > 0 ? diff / 60 : 0;
+  };
+
   const getFieldLabel = (field: string): string => {
     const labels: Record<string, string> = {
       interpretationDate: '実施日',
@@ -1026,8 +1039,8 @@ export const CaseDetail: React.FC = () => {
       interpretationStaff: '対応担当者',
       interpretationParticipants: 'その他参加者',
       interpretationBillingUnit: '時間単位',
-      interpretationBaseRate: '基本料金',
-      interpretationAdditionalRate: '加算料金',
+      interpretationBaseRate: '基本時間単価',
+      interpretationAdditionalRate: '加算料金（交通費、待機時間等）',
       interpretationMemo: '通訳メモ',
       interpretationGlossary: '専門用語リスト',
       interpretationCancelDate: 'キャンセル日時',
@@ -1049,10 +1062,19 @@ export const CaseDetail: React.FC = () => {
       syncStatus: 'pending' as const
     };
 
-    if (field === 'interpretationBaseRate' || field === 'interpretationAdditionalRate') {
+    if (
+      field === 'interpretationBaseRate' || 
+      field === 'interpretationAdditionalRate' ||
+      field === 'interpretationStartTime' ||
+      field === 'interpretationEndTime'
+    ) {
       const base = field === 'interpretationBaseRate' ? Number(value) : Number(kase.interpretationBaseRate || 0);
       const add = field === 'interpretationAdditionalRate' ? Number(value) : Number(kase.interpretationAdditionalRate || 0);
-      updatedFields.interpretationTotalBilling = base + add;
+      const start = field === 'interpretationStartTime' ? String(value) : String(kase.interpretationStartTime || '');
+      const end = field === 'interpretationEndTime' ? String(value) : String(kase.interpretationEndTime || '');
+      
+      const durationHours = getInterpretationDurationHours(start, end);
+      updatedFields.interpretationTotalBilling = Math.round(durationHours * base) + add;
     }
 
     let historyList: any[] = [];
@@ -1191,6 +1213,71 @@ export const CaseDetail: React.FC = () => {
           </div>
         </div>
 
+        {/* 3-Step Progress Timeline Step Bar */}
+        <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm space-y-4">
+          <div className="flex justify-between items-center text-xs font-black text-slate-700">
+            <span>通訳案件進捗状況</span>
+            <span className="text-indigo-900">
+              {kase.status === 'pending' ? '予約 (0%)' : kase.status === 'in_progress' ? '準備中 (50%)' : '実施済 (100%)'}
+            </span>
+          </div>
+
+          <div className="relative flex items-center justify-between mt-6 mb-2 px-6">
+            <div className="absolute left-10 right-10 top-1/2 -translate-y-1/2 h-1 bg-slate-100 rounded" />
+            <div 
+              className="absolute left-10 top-1/2 -translate-y-1/2 h-1 bg-indigo-900 rounded transition-all duration-500" 
+              style={{ 
+                width: kase.status === 'pending' 
+                  ? '0%' 
+                  : kase.status === 'in_progress' 
+                    ? '50%' 
+                    : '100%' 
+              }}
+            />
+
+            {[
+              { label: '予約', percent: '0%', stat: 'pending' as const, prog: 0 },
+              { label: '準備中', percent: '50%', stat: 'in_progress' as const, prog: 50 },
+              { label: '実施済', percent: '100%', stat: 'completed' as const, prog: 100 }
+            ].map((step, idx) => {
+              const isActive = (step.stat === 'pending' && (kase.status === 'pending' || kase.status === 'in_progress' || kase.status === 'completed')) ||
+                               (step.stat === 'in_progress' && (kase.status === 'in_progress' || kase.status === 'completed')) ||
+                               (step.stat === 'completed' && kase.status === 'completed');
+              const isCurrent = kase.status === step.stat;
+              
+              return (
+                <button
+                  key={idx}
+                  onClick={async () => {
+                    await handleFieldUpdate('status', step.stat);
+                    await handleFieldUpdate('progress', step.prog);
+                  }}
+                  className="relative z-10 flex flex-col items-center group focus:outline-none"
+                >
+                  <div 
+                    className={`h-8 w-8 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
+                      isCurrent 
+                        ? 'bg-indigo-900 border-indigo-900 text-white scale-110 shadow-md'
+                        : isActive
+                          ? 'bg-white border-indigo-900 text-indigo-900 font-bold'
+                          : 'bg-white border-slate-200 text-slate-400 hover:border-slate-350'
+                    }`}
+                  >
+                    <span className="text-[10px] font-black">{step.prog}%</span>
+                  </div>
+                  <span 
+                    className={`text-[10.5px] font-bold mt-2 transition-all duration-300 ${
+                      isCurrent ? 'text-indigo-900 font-black' : 'text-slate-500 group-hover:text-slate-700'
+                    }`}
+                  >
+                    {step.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* 3 Columns Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
@@ -1205,13 +1292,37 @@ export const CaseDetail: React.FC = () => {
 
             {/* DateTime pickers */}
             <div className="space-y-4">
+              <div className="space-y-1.5 p-3 bg-slate-50/50 border border-slate-100 rounded-xl">
+                <span className="text-[10px] font-bold text-indigo-900 block mb-1">開始日時</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">実施日</label>
+                    <input
+                      type="date"
+                      value={kase.interpretationDate || ''}
+                      onChange={(e) => handleFieldUpdate('interpretationDate', e.target.value)}
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-indigo-500 bg-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">開始時刻</label>
+                    <input
+                      type="time"
+                      value={kase.interpretationStartTime || ''}
+                      onChange={(e) => handleFieldUpdate('interpretationStartTime', e.target.value)}
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-indigo-500 bg-white"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">実施日</label>
+                  <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">終了時間 (TimePicker)</label>
                   <input
-                    type="date"
-                    value={kase.interpretationDate || ''}
-                    onChange={(e) => handleFieldUpdate('interpretationDate', e.target.value)}
+                    type="time"
+                    value={kase.interpretationEndTime || ''}
+                    onChange={(e) => handleFieldUpdate('interpretationEndTime', e.target.value)}
                     className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-indigo-500 bg-white"
                   />
                 </div>
@@ -1226,27 +1337,6 @@ export const CaseDetail: React.FC = () => {
                     <option value="オンライン">オンライン</option>
                     <option value="電話">電話</option>
                   </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">開始時間</label>
-                  <input
-                    type="time"
-                    value={kase.interpretationStartTime || ''}
-                    onChange={(e) => handleFieldUpdate('interpretationStartTime', e.target.value)}
-                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-indigo-500 bg-white"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">終了時間</label>
-                  <input
-                    type="time"
-                    value={kase.interpretationEndTime || ''}
-                    onChange={(e) => handleFieldUpdate('interpretationEndTime', e.target.value)}
-                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-indigo-500 bg-white"
-                  />
                 </div>
               </div>
 
@@ -1358,41 +1448,46 @@ export const CaseDetail: React.FC = () => {
               
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">時間単位</label>
-                  <input
-                    type="text"
-                    placeholder="例: 1時間 / 30分"
-                    value={kase.interpretationBillingUnit || ''}
-                    onChange={(e) => handleFieldUpdate('interpretationBillingUnit', e.target.value)}
-                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-indigo-500 bg-white"
-                  />
+                  <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">基本時間単価 (1時間あたり)</label>
+                  <div className="relative">
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-450 text-slate-400">¥</span>
+                    <input
+                      type="number"
+                      placeholder="5000"
+                      value={kase.interpretationBaseRate || 0}
+                      onChange={(e) => handleFieldUpdate('interpretationBaseRate', Number(e.target.value))}
+                      className="w-full pl-6 pr-2.5 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-indigo-500 bg-white font-mono"
+                    />
+                  </div>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">基本料金</label>
-                  <input
-                    type="number"
-                    value={kase.interpretationBaseRate || 0}
-                    onChange={(e) => handleFieldUpdate('interpretationBaseRate', Number(e.target.value))}
-                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-indigo-500 bg-white font-mono"
-                  />
+                  <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">加算料金 (交通費、待機時間等)</label>
+                  <div className="relative">
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">¥</span>
+                    <input
+                      type="number"
+                      placeholder="0"
+                      value={kase.interpretationAdditionalRate || 0}
+                      onChange={(e) => handleFieldUpdate('interpretationAdditionalRate', Number(e.target.value))}
+                      className="w-full pl-6 pr-2.5 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-indigo-500 bg-white font-mono"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">加算料金 (延長料金等)</label>
-                <input
-                  type="number"
-                  value={kase.interpretationAdditionalRate || 0}
-                  onChange={(e) => handleFieldUpdate('interpretationAdditionalRate', Number(e.target.value))}
-                  className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-indigo-500 bg-white font-mono"
-                />
-              </div>
-
-              <div className="p-3 bg-emerald-50/50 rounded-xl border border-emerald-100 flex justify-between items-center text-xs">
-                <span className="text-emerald-800 font-bold">請求合計金額:</span>
-                <span className="font-mono font-black text-sm text-emerald-800">
-                  ¥{(kase.interpretationTotalBilling || 0).toLocaleString()}
-                </span>
+              <div className="p-3 bg-emerald-50/50 rounded-xl border border-emerald-100 flex flex-col gap-1 text-xs">
+                <div className="flex justify-between items-center text-slate-500 text-[10px] font-bold">
+                  <span>計算明細:</span>
+                  <span className="font-mono">
+                    ( {getInterpretationDurationHours(kase.interpretationStartTime, kase.interpretationEndTime).toFixed(2)}時間 × ¥{(kase.interpretationBaseRate || 0).toLocaleString()} ) ＋ ¥{(kase.interpretationAdditionalRate || 0).toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center border-t border-emerald-100/50 pt-1.5 mt-0.5">
+                  <span className="text-emerald-800 font-bold">請求合計金額:</span>
+                  <span className="font-mono font-black text-sm text-emerald-800 animate-fade-in">
+                    ¥{(kase.interpretationTotalBilling || 0).toLocaleString()}
+                  </span>
+                </div>
               </div>
             </div>
 
