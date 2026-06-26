@@ -899,6 +899,68 @@ export const CaseDetail: React.FC = () => {
                 className="w-full px-3 py-2.5 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-xl min-h-[140px] text-xs bg-slate-50/20"
               />
             </div>
+
+            <hr className="border-slate-100" />
+
+            {/* Billing and Payment Section */}
+            <div className="space-y-4">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">請求・支払い情報</span>
+              
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-bold text-slate-505 text-slate-500 block">請求額</label>
+                  <div className="relative">
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400">¥</span>
+                    <input
+                      type="number"
+                      value={kase.fee || 0}
+                      onChange={(e) => handleFieldUpdate('fee', Number(e.target.value))}
+                      className="w-full pl-6 pr-2.5 py-1.5 rounded-lg border border-slate-200 focus:ring-1 focus:ring-indigo-500 bg-white font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[9px] font-bold text-slate-500 block">支払状況</label>
+                  <select
+                    value={kase.paymentStatus || 'unpaid'}
+                    onChange={(e) => handleFieldUpdate('paymentStatus', e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 focus:ring-1 focus:ring-indigo-500 bg-white"
+                  >
+                    <option value="unpaid">未払い</option>
+                    <option value="partially_paid">一部支払済</option>
+                    <option value="paid">支払済</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-bold text-slate-500 block">支払期限</label>
+                  <input
+                    type="date"
+                    value={kase.paymentDeadline || ''}
+                    onChange={(e) => handleFieldUpdate('paymentDeadline', e.target.value)}
+                    className={`w-full px-2.5 py-1.5 rounded-lg border text-xs focus:ring-1 focus:ring-indigo-500 bg-white font-mono ${
+                      isDeadlineOverdue(kase.paymentDeadline, kase.paymentStatus)
+                        ? 'border-rose-300 text-rose-600 bg-rose-50 font-bold'
+                        : 'border-slate-200'
+                    }`}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[9px] font-bold text-slate-500 block">インボイス番号</label>
+                  <input
+                    type="text"
+                    placeholder="例: T12345..."
+                    value={kase.invoiceNumber || ''}
+                    onChange={(e) => handleFieldUpdate('invoiceNumber', e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 focus:ring-1 focus:ring-indigo-500 bg-white"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Column 3: Translated Documents */}
@@ -1060,6 +1122,12 @@ export const CaseDetail: React.FC = () => {
     return `${hours}時間${mins}分`;
   };
 
+  const isDeadlineOverdue = (deadline?: string, paymentStatus?: string): boolean => {
+    if (!deadline || paymentStatus === 'paid') return false;
+    const today = new Date().toISOString().split('T')[0];
+    return deadline < today;
+  };
+
   const getInterpretationDurationHours = (startTime?: string, endTime?: string): number => {
     if (!startTime || !endTime) return 0;
     const [sh, sm] = startTime.split(':').map(Number);
@@ -1092,7 +1160,11 @@ export const CaseDetail: React.FC = () => {
       interpretationRating: '顧客評価',
       interpretationRatingFeedback: 'フィードバック',
       translationLanguageFrom: '原文言語',
-      translationLanguageTo: '訳文言語'
+      translationLanguageTo: '訳文言語',
+      paymentDeadline: '支払期限',
+      invoiceNumber: 'インボイス番号',
+      paymentStatus: '支払状況',
+      fee: '請求額'
     };
     return labels[field] || field;
   };
@@ -1519,6 +1591,46 @@ export const CaseDetail: React.FC = () => {
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">支払状況</label>
+                  <select
+                    value={kase.paymentStatus || 'unpaid'}
+                    onChange={(e) => handleFieldUpdate('paymentStatus', e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 focus:ring-1 focus:ring-indigo-500 bg-white"
+                  >
+                    <option value="unpaid">未払い</option>
+                    <option value="partially_paid">一部支払済</option>
+                    <option value="paid">支払済</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">インボイス番号</label>
+                  <input
+                    type="text"
+                    placeholder="例: T12345..."
+                    value={kase.invoiceNumber || ''}
+                    onChange={(e) => handleFieldUpdate('invoiceNumber', e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 focus:ring-1 focus:ring-indigo-500 bg-white"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">支払期限</label>
+                <input
+                  type="date"
+                  value={kase.paymentDeadline || ''}
+                  onChange={(e) => handleFieldUpdate('paymentDeadline', e.target.value)}
+                  className={`w-full px-2.5 py-1.5 rounded-lg border text-xs focus:ring-1 focus:ring-indigo-500 bg-white font-mono ${
+                    isDeadlineOverdue(kase.paymentDeadline, kase.paymentStatus)
+                      ? 'border-rose-300 text-rose-600 bg-rose-50 font-bold'
+                      : 'border-slate-200'
+                  }`}
+                />
+              </div>
+
               <div className="p-3 bg-emerald-50/50 rounded-xl border border-emerald-100 flex flex-col gap-1 text-xs">
                 <div className="flex justify-between items-center text-slate-500 text-[10px] font-bold">
                   <span>計算明細:</span>
@@ -1816,15 +1928,8 @@ export const CaseDetail: React.FC = () => {
                 )}
               </div>
 
-              {/* Progress and Fee */}
-              <div className="p-4 bg-slate-50 rounded-xl space-y-3 border border-slate-100/50 flex flex-col justify-between">
-                <div className="flex justify-between items-center text-xs font-bold text-slate-700">
-                  <span>料金 (契約額):</span>
-                  <span className="text-sm font-black text-indigo-950">
-                    {kase.fee > 0 ? `¥${kase.fee.toLocaleString()}` : '¥0 (未設定)'}
-                  </span>
-                </div>
-                
+              {/* Progress, Billing and Payment Card */}
+              <div className="p-4 bg-slate-50 rounded-xl space-y-4 border border-slate-100/50 flex flex-col justify-between">
                 <div className="space-y-1">
                   <div className="flex justify-between text-[9px] font-bold text-slate-400 uppercase tracking-wider">
                     <span>進捗状況</span>
@@ -1835,6 +1940,67 @@ export const CaseDetail: React.FC = () => {
                       className="h-full bg-indigo-900 rounded-full transition-all duration-500"
                       style={{ width: `${kase.progress}%` }}
                     />
+                  </div>
+                </div>
+
+                <hr className="border-slate-200/50" />
+
+                <div className="space-y-3">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">請求・支払い情報</span>
+                  
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold text-slate-500 block">請求額</label>
+                      <div className="relative">
+                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400">¥</span>
+                        <input
+                          type="number"
+                          value={kase.fee || 0}
+                          onChange={(e) => handleFieldUpdate('fee', Number(e.target.value))}
+                          className="w-full pl-6 pr-2.5 py-1 rounded-lg border border-slate-200 focus:ring-1 focus:ring-indigo-500 bg-white font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold text-slate-500 block">支払状況</label>
+                      <select
+                        value={kase.paymentStatus || 'unpaid'}
+                        onChange={(e) => handleFieldUpdate('paymentStatus', e.target.value)}
+                        className="w-full px-2 py-1 rounded-lg border border-slate-200 focus:ring-1 focus:ring-indigo-500 bg-white"
+                      >
+                        <option value="unpaid">未払い</option>
+                        <option value="partially_paid">一部支払済</option>
+                        <option value="paid">支払済</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold text-slate-500 block">支払期限</label>
+                      <input
+                        type="date"
+                        value={kase.paymentDeadline || ''}
+                        onChange={(e) => handleFieldUpdate('paymentDeadline', e.target.value)}
+                        className={`w-full px-2 py-1 rounded-lg border text-xs focus:ring-1 focus:ring-indigo-500 bg-white font-mono ${
+                          isDeadlineOverdue(kase.paymentDeadline, kase.paymentStatus)
+                            ? 'border-rose-300 text-rose-600 bg-rose-50 font-bold'
+                            : 'border-slate-200'
+                        }`}
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold text-slate-500 block">インボイス番号</label>
+                      <input
+                        type="text"
+                        placeholder="例: T12345..."
+                        value={kase.invoiceNumber || ''}
+                        onChange={(e) => handleFieldUpdate('invoiceNumber', e.target.value)}
+                        className="w-full px-2 py-1 rounded-lg border border-slate-200 focus:ring-1 focus:ring-indigo-500 bg-white"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>

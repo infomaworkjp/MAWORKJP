@@ -54,6 +54,10 @@ export interface Case {
   interpretationRating?: number;        // 満足度スター評価 (1-5)
   interpretationRatingFeedback?: string;// フィードバックテキスト
 
+  // 共通の請求・支払い関連情報
+  paymentDeadline?: string;             // 支払期限 (YYYY-MM-DD)
+  invoiceNumber?: string;               // インボイス番号
+
   createdAt: number;
   updatedAt: number;
   syncStatus: 'pending' | 'synced';
