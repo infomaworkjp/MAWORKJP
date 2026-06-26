@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, generateUUID, Case, Customer, Consultation, Evidence } from '../db';
 import { jsPDF } from 'jspdf';
 import { useLanguage } from '../context/LanguageContext';
-import { ArrowLeft, Edit2, User, Layers, Calendar, Clipboard, MessageSquare, Paperclip, Plus, Trash2, Eye, Upload, CheckCircle, CheckCircle2, Clock, AlertCircle, Ban, HelpCircle, ImageIcon, FileText, Music, Video, DollarSign, BookOpen, Download } from 'lucide-react';
+import { ArrowLeft, Edit2, User, Layers, Calendar, Clipboard, MessageSquare, Paperclip, Plus, Trash2, Eye, Upload, CheckCircle, CheckCircle2, Clock, AlertCircle, Ban, HelpCircle, ImageIcon, FileText, Music, Video, DollarSign, BookOpen, Download, Mail } from 'lucide-react';
 
 export const CaseDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
