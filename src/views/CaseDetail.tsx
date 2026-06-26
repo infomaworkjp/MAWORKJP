@@ -284,6 +284,14 @@ export const CaseDetail: React.FC = () => {
     }
   };
 
+  const handlePairConfirmedUpdate = async (evidenceId: string, isConfirmed: boolean) => {
+    try {
+      await db.evidenceFiles.update(evidenceId, { isPairedConfirmed: isConfirmed });
+    } catch (err) {
+      console.error("Failed to update pairing confirmation state", err);
+    }
+  };
+
   const prepareUpload = (files: File[], cat: '原文書' | '訳文書' | 'その他' = 'その他') => {
     setPendingUploadFiles(files);
     setUploadFileNames(files.map(f => f.name));
@@ -626,14 +634,15 @@ export const CaseDetail: React.FC = () => {
                     <span className="font-bold text-rose-650 text-rose-600">{kase.deadline}</span>
                   </div>
                 )}
-                {kase.translationLanguageFrom && (
-                  <div>
-                    <span className="text-slate-400">言語ペア: </span>
-                    <span className="font-bold text-indigo-900 bg-indigo-50 px-1.5 py-0.5 rounded">
-                      {kase.translationLanguageFrom} ➔ {kase.translationLanguageTo}
+                <div>
+                  <span className="text-slate-400">言語ペア: </span>
+                  <span className="font-bold text-indigo-900 bg-indigo-50 px-1.5 py-0.5 rounded">
+                    {kase.translationLanguageFrom || 'スペイン語'} ➔ {kase.translationLanguageTo || '日本語'}
+                    <span className="text-[10px] font-medium text-indigo-650 ml-1.5 bg-white/70 px-1.5 py-0.2 rounded-full border border-indigo-100">
+                      進捗: {kase.translationProgress !== undefined ? kase.translationProgress : kase.progress}%
                     </span>
-                  </div>
-                )}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -745,15 +754,47 @@ export const CaseDetail: React.FC = () => {
                       </select>
                     </div>
 
-                    {/* If paired, show connection info */}
+                    {/* If paired, show connection info, language pair, and check box */}
                     {ev.relatedFileId && (() => {
                       const pairedFile = translatedFiles.find(tf => tf.evidenceId === ev.relatedFileId);
-                      return pairedFile ? (
-                        <div className="flex items-center gap-1 text-[9px] text-indigo-700 bg-indigo-50 px-2 py-1 rounded-lg">
-                          <CheckCircle2 className="h-3 w-3 shrink-0" />
-                          <span className="truncate">➔ 訳文: {pairedFile.name}</span>
+                      if (!pairedFile) return null;
+                      
+                      const langFrom = kase.translationLanguageFrom || 'スペイン語';
+                      const langTo = kase.translationLanguageTo || '日本語';
+
+                      return (
+                        <div className={`p-2.5 rounded-xl space-y-2 border transition ${
+                          ev.isPairedConfirmed 
+                            ? 'bg-emerald-50/70 border-emerald-200 text-emerald-800' 
+                            : 'bg-indigo-50/50 border-indigo-100 text-indigo-900'
+                        }`}>
+                          <div className="flex items-center gap-1 text-[10.5px] font-black leading-snug">
+                            <span className="bg-indigo-900 text-white text-[8px] font-bold px-1 py-0.2 rounded shrink-0">原文</span>
+                            <span className="truncate max-w-[80px] font-mono">{ev.name}</span>
+                            <span className="font-extrabold text-indigo-500 mx-0.5">➔</span>
+                            <span className="bg-emerald-600 text-white text-[8px] font-bold px-1 py-0.2 rounded shrink-0">訳文</span>
+                            <span className="truncate max-w-[80px] font-mono">{pairedFile.name}</span>
+                          </div>
+
+                          <div className="flex items-center justify-between text-[9px] font-bold">
+                            <span className="bg-white/80 border px-1.5 py-0.5 rounded-full">
+                              言語ペア: {langFrom} ➔ {langTo}
+                            </span>
+                            
+                            <label className="flex items-center gap-1 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={!!ev.isPairedConfirmed}
+                                onChange={(e) => handlePairConfirmedUpdate(ev.evidenceId, e.target.checked)}
+                                className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 h-3.5 w-3.5"
+                              />
+                              <span className={ev.isPairedConfirmed ? 'text-emerald-700 font-bold' : 'text-slate-500'}>
+                                ペアリング確認
+                              </span>
+                            </label>
+                          </div>
                         </div>
-                      ) : null;
+                      );
                     })()}
                   </div>
                 ))}
@@ -771,19 +812,22 @@ export const CaseDetail: React.FC = () => {
             </div>
 
             {/* Language pair layout */}
-            {kase.translationLanguageFrom && (
-              <div className="flex items-center justify-between bg-slate-50/50 p-4 border border-slate-100 rounded-2xl text-center">
+            <div className="bg-slate-50/50 p-4 border border-slate-100 rounded-2xl text-center space-y-2">
+              <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">原文</div>
-                  <div className="text-sm font-black text-indigo-950">{kase.translationLanguageFrom}</div>
+                  <div className="text-sm font-black text-indigo-950">{kase.translationLanguageFrom || 'スペイン語'}</div>
                 </div>
                 <div className="text-slate-300 font-black text-base shrink-0 mx-2">➔</div>
                 <div className="flex-1">
                   <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">訳文</div>
-                  <div className="text-sm font-black text-indigo-950">{kase.translationLanguageTo}</div>
+                  <div className="text-sm font-black text-indigo-950">{kase.translationLanguageTo || '日本語'}</div>
                 </div>
               </div>
-            )}
+              <div className="text-[10.5px] font-black text-indigo-900 bg-indigo-50/50 py-1 rounded-lg border border-indigo-100/50">
+                翻訳進捗率: {kase.translationProgress !== undefined ? kase.translationProgress : kase.progress}%
+              </div>
+            </div>
 
             {/* Progress controller */}
             <div className="space-y-4">

@@ -82,6 +82,7 @@ export interface Evidence {
   cloudStorageUrl?: string;
   fileCategory?: '原文書' | '訳文書' | 'その他'; // ファイルカテゴリー (原文書/訳文書/その他)
   relatedFileId?: string; // 関連するファイルID (原文書に対して訳文書をペアリング)
+  isPairedConfirmed?: boolean; // ペアリング確認チェック
   createdAt: number;
   syncStatus: 'pending' | 'synced';
 }
