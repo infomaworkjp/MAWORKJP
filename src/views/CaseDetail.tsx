@@ -974,12 +974,12 @@ export const CaseDetail: React.FC = () => {
     );
   };
 
-  if (kase.category === '翻訳') {
-    return renderTranslationCase();
-  }
-
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <>
+      {kase.category === '翻訳' ? (
+        renderTranslationCase()
+      ) : (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       {/* Header breadcrumb & actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <button
@@ -1348,6 +1348,8 @@ export const CaseDetail: React.FC = () => {
           </div>
         </div>
       </div>
+      </div>
+      )}
 
       {/* Edit Case Modal */}
       {isEditModalOpen && (
@@ -1863,7 +1865,7 @@ export const CaseDetail: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };
 
