@@ -39,7 +39,8 @@ export interface Case {
   interpretationStartTime?: string;     // 開始時刻 (HH:MM)
   interpretationEndTime?: string;       // 終了時刻 (HH:MM)
   interpretationLocation?: '対面' | 'オンライン' | '電話'; // 実施場所
-  interpretationType?: '逐次' | '同時' | 'ウィスパリング' | 'その他'; // 通訳種別
+  interpretationType?: '電話' | '付き添い'; // 通訳タイプ
+  interpretationClass?: '逐次' | '同時' | 'ウィスパリング' | 'その他'; // 通訳種別
   interpretationStaff?: string;         // 対応担当者
   interpretationParticipants?: string;  // その他参加者
   interpretationBillingUnit?: string;   // 時間単位 (1時間 / 30分 など)
@@ -53,6 +54,15 @@ export interface Case {
   interpretationChangeHistory?: string; // 変更履歴 (JSON配列文字列)
   interpretationRating?: number;        // 満足度スター評価 (1-5)
   interpretationRatingFeedback?: string;// フィードバックテキスト
+
+  // M-A Work JP 新料金体系追加分
+  actualDuration?: number;              // 実施時間 (hours, decimal)
+  billableDuration?: number;            // 請求時間 (hours, integer)
+  implementationLocation?: string;      // 実施場所 (Type2用)
+  baseFee?: number;                     // 基本料金 (Type1: 2000, Type2: 15000)
+  transportationFee?: number;           // 交通費
+  totalBillingAmount?: number;          // 請求合計額 (自動計算)
+  billingDeadline?: string;             // 支払期限 (自動計算: 実施日 + 30日)
 
   // 共通の請求・支払い関連情報
   paymentDeadline?: string;             // 支払期限 (YYYY-MM-DD)
