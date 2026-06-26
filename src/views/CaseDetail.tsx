@@ -27,6 +27,10 @@ export const CaseDetail: React.FC = () => {
   const [paymentStatus, setPaymentStatus] = useState<'unpaid' | 'paid' | 'partially_paid'>('unpaid');
   const [status, setStatus] = useState<Case['status']>('pending');
   const [progress, setProgress] = useState<number>(0);
+  const [translationLanguageFrom, setTranslationLanguageFrom] = useState('スペイン語');
+  const [translationLanguageTo, setTranslationLanguageTo] = useState('日本語');
+  const [deadline, setDeadline] = useState('');
+  const [uploadCategory, setUploadCategory] = useState<'original' | 'translated' | 'other'>('other');
 
   // Form states (New Consultation)
   const [consultationDate, setConsultationDate] = useState(new Date().toISOString().split('T')[0]);
@@ -110,6 +114,9 @@ export const CaseDetail: React.FC = () => {
     setPaymentStatus(kase.paymentStatus || 'unpaid');
     setStatus(kase.status || 'pending');
     setProgress(kase.progress || 0);
+    setTranslationLanguageFrom(kase.translationLanguageFrom || 'スペイン語');
+    setTranslationLanguageTo(kase.translationLanguageTo || '日本語');
+    setDeadline(kase.deadline || '');
     setIsEditModalOpen(true);
   };
 
@@ -128,6 +135,10 @@ export const CaseDetail: React.FC = () => {
       paymentStatus,
       status,
       progress,
+      translationLanguageFrom: category === '翻訳' ? translationLanguageFrom : undefined,
+      translationLanguageTo: category === '翻訳' ? translationLanguageTo : undefined,
+      deadline: category === '翻訳' ? deadline : undefined,
+      translationProgress: category === '翻訳' ? progress : undefined,
       updatedAt: Date.now(),
       syncStatus: 'pending',
     };
@@ -264,10 +275,19 @@ export const CaseDetail: React.FC = () => {
     }
   };
 
-  const prepareUpload = (files: File[]) => {
+  const handlePairFiles = async (originalFileId: string, translatedFileId: string) => {
+    try {
+      await db.evidenceFiles.update(originalFileId, { relatedFileId: translatedFileId || undefined });
+    } catch (err) {
+      console.error("Failed to pair files", err);
+    }
+  };
+
+  const prepareUpload = (files: File[], cat: 'original' | 'translated' | 'other' = 'other') => {
     setPendingUploadFiles(files);
     setUploadFileNames(files.map(f => f.name));
     setShouldMergeImages(false);
+    setUploadCategory(cat);
     
     const imageCount = files.filter(f => f.type.startsWith('image/')).length;
     if (imageCount >= 2) {
@@ -297,6 +317,7 @@ export const CaseDetail: React.FC = () => {
           type: 'application/pdf',
           size: pdfBlob.size,
           fileData: new File([pdfBlob], finalPdfName, { type: 'application/pdf' }),
+          fileCategory: uploadCategory,
           createdAt: Date.now(),
           syncStatus: 'pending',
         };
@@ -313,6 +334,7 @@ export const CaseDetail: React.FC = () => {
             type: file.type,
             size: file.size,
             fileData: file,
+            fileCategory: uploadCategory,
             createdAt: Date.now(),
             syncStatus: 'pending',
           };
@@ -329,6 +351,7 @@ export const CaseDetail: React.FC = () => {
             type: file.type,
             size: file.size,
             fileData: file,
+            fileCategory: uploadCategory,
             createdAt: Date.now(),
             syncStatus: 'pending',
           };
@@ -477,7 +500,457 @@ export const CaseDetail: React.FC = () => {
     if (type.startsWith('audio/')) return <Music className="h-5 w-5 text-amber-500" />;
     if (type.startsWith('video/')) return <Video className="h-5 w-5 text-indigo-500" />;
     return <Paperclip className="h-5 w-5 text-slate-400" />;
+  const renderTranslationCase = () => {
+    const originalFiles = associatedEvidence.filter(ev => ev.fileCategory === 'original');
+    const translatedFiles = associatedEvidence.filter(ev => ev.fileCategory === 'translated');
+
+    // Mailto link for client submission
+    const clientEmail = customer?.email || '';
+    const mailSubject = encodeURIComponent(`【訳文書納品】${kase.title} のお知らせ`);
+    const mailBody = encodeURIComponent(`${customer?.name || ''} 様\n\nお世話になっております。M-A Work JP です。\nご依頼いただいておりました翻訳案件「${kase.title}」の翻訳作業が完了いたしましたので、訳文書を納品いたします。\n\n添付のファイルをご確認いただけますと幸いです。\nよろしくお願いいたします。`);
+    const mailtoUrl = `mailto:${clientEmail}?subject=${mailSubject}&body=${mailBody}`;
+
+    const getTranslationStatusBadge = (stat: Case['status']) => {
+      switch (stat) {
+        case 'pending':
+          return (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-100">
+              <Clock className="h-3 w-3" />
+              <span>受付中</span>
+            </span>
+          );
+        case 'in_progress':
+          return (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+              <AlertCircle className="h-3 w-3 animate-pulse" />
+              <span>翻訳中</span>
+            </span>
+          );
+        case 'completed':
+          return (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
+              <CheckCircle2 className="h-3 w-3" />
+              <span>完了</span>
+            </span>
+          );
+        case 'delivered':
+          return (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-teal-50 text-teal-700 border border-teal-100">
+              <CheckCircle className="h-3 w-3" />
+              <span>納品済み</span>
+            </span>
+          );
+        case 'suspended':
+        default:
+          return (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-100">
+              <Ban className="h-3 w-3" />
+              <span>保留</span>
+            </span>
+          );
+      }
+    };
+
+    const handleProgressChange = async (newVal: number) => {
+      if (!kase) return;
+      const updated = {
+        ...kase,
+        progress: newVal,
+        translationProgress: newVal,
+        status: newVal === 100 ? 'completed' as const : kase.status,
+        updatedAt: Date.now(),
+        syncStatus: 'pending' as const,
+      };
+      await db.cases.put(updated);
+    };
+
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 animate-fade-in">
+        {/* Back and Edit Actions */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <button
+            onClick={() => navigate('/cases')}
+            className="inline-flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-indigo-900 transition self-start"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>案件一覧に戻る</span>
+          </button>
+
+          <button
+            onClick={openEditModal}
+            className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-indigo-900 text-white text-xs font-bold rounded-xl hover:bg-indigo-950 transition active:scale-95 shadow-sm self-start"
+          >
+            <Edit2 className="h-3.5 w-3.5" />
+            <span>案件情報の編集</span>
+          </button>
+        </div>
+
+        {/* TOP: Header Card */}
+        <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm space-y-4">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex gap-1.5">
+              {getTranslationStatusBadge(kase.status)}
+              {getPaymentBadge(kase.paymentStatus)}
+            </div>
+            <span className="inline-flex items-center gap-1 text-[10px] text-indigo-700 font-bold bg-indigo-50 px-2 py-0.5 rounded-full">
+              <BookOpen className="h-3 w-3 text-indigo-900" />
+              <span>翻訳案件</span>
+            </span>
+          </div>
+
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-black text-slate-800 tracking-tight leading-tight">
+                {kase.title}
+              </h2>
+              <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-2 text-[11px] text-slate-500 font-medium">
+                <div>
+                  <span className="text-slate-400">クライクライアント: </span>
+                  <Link to={`/customers/${customer?.customerId}`} className="font-bold text-indigo-900 hover:underline">
+                    {customer?.name || '不明'}
+                  </Link>
+                </div>
+                <div>
+                  <span className="text-slate-400">依頼日: </span>
+                  <span className="font-semibold">{new Date(kase.createdAt).toLocaleDateString()}</span>
+                </div>
+                {kase.deadline && (
+                  <div>
+                    <span className="text-slate-400">納期: </span>
+                    <span className="font-bold text-rose-650 text-rose-600">{kase.deadline}</span>
+                  </div>
+                )}
+                {kase.translationLanguageFrom && (
+                  <div>
+                    <span className="text-slate-400">言語ペア: </span>
+                    <span className="font-bold text-indigo-900 bg-indigo-50 px-1.5 py-0.5 rounded">
+                      {kase.translationLanguageFrom} ➔ {kase.translationLanguageTo}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {translatedFiles.length > 0 && (
+                <button
+                  onClick={() => handleDownloadEvidence(translatedFiles[translatedFiles.length - 1])}
+                  className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100/70 border border-emerald-100 text-emerald-800 text-xs font-bold rounded-xl transition"
+                  title="最新の訳文書をダウンロード"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  <span>訳文書をダウンロード</span>
+                </button>
+              )}
+              {clientEmail && (
+                <a
+                  href={mailtoUrl}
+                  className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100/70 border border-indigo-100 text-indigo-800 text-xs font-bold rounded-xl transition"
+                >
+                  <Mail className="h-3.5 w-3.5" />
+                  <span>クライアントに送信</span>
+                </a>
+              )}
+              <button
+                onClick={() => {
+                  setConsultationDate(new Date().toISOString().split('T')[0]);
+                  setConsultant('');
+                  setConsultationMethod('line');
+                  setConsultationSummary('');
+                  setConsultationNotes('');
+                  setIsAddConsultationOpen(true);
+                }}
+                className="flex items-center justify-center gap-1.5 px-3.5 py-2 border border-slate-205 hover:bg-slate-50 text-xs font-bold rounded-xl transition text-slate-600"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>相談記録を追加</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* 3 Columns Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          {/* Column 1: Original Documents */}
+          <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm space-y-4">
+            <div className="flex items-center justify-between gap-2 border-b border-slate-50 pb-2">
+              <h3 className="text-xs font-black text-slate-800 tracking-tight flex items-center gap-1.5">
+                <FileText className="h-4 w-4 text-indigo-900" />
+                <span>原文書リスト ({originalFiles.length})</span>
+              </h3>
+              
+              {/* Invisible file input */}
+              <input
+                id="original-file-input"
+                type="file"
+                multiple
+                onChange={(e) => {
+                  if (e.target.files) prepareUpload(Array.from(e.target.files), 'original');
+                }}
+                className="hidden"
+              />
+              <label
+                htmlFor="original-file-input"
+                className="cursor-pointer inline-flex items-center gap-1 px-2.5 py-1.5 bg-indigo-900 text-white text-[10px] font-bold rounded-lg hover:bg-indigo-950 transition active:scale-95 shadow-sm"
+              >
+                <Plus className="h-3 w-3" />
+                <span>原文書を追加</span>
+              </label>
+            </div>
+
+            {/* List */}
+            {originalFiles.length === 0 ? (
+              <div className="text-center text-slate-400 text-[11px] py-12 border-2 border-dashed border-slate-100 rounded-xl">
+                原文書がありません。「原文書を追加」からアップロードしてください。
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+                {originalFiles.map((ev) => (
+                  <div key={ev.evidenceId} className="p-3 bg-slate-50/50 rounded-xl border border-slate-100 hover:bg-slate-50 transition space-y-2.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-start gap-2 truncate min-w-0">
+                        {getFileIcon(ev.type)}
+                        <div className="truncate min-w-0">
+                          <div className="font-bold text-slate-800 text-xs truncate" title={ev.name}>{ev.name}</div>
+                          <div className="text-[9px] text-slate-400 font-mono">{(ev.size / 1024).toFixed(1)} KB</div>
+                        </div>
+                      </div>
+                      <div className="flex gap-0.5 shrink-0">
+                        <button onClick={() => setPreviewEvidence(ev)} className="p-1 text-slate-400 hover:text-indigo-900 hover:bg-white rounded border border-transparent hover:border-slate-100 transition"><Eye className="h-3.5 w-3.5" /></button>
+                        <button onClick={() => handleDownloadEvidence(ev)} className="p-1 text-slate-400 hover:text-indigo-900 hover:bg-white rounded border border-transparent hover:border-slate-100 transition"><Download className="h-3.5 w-3.5" /></button>
+                        <button onClick={() => handleDeleteEvidence(ev.evidenceId)} className="p-1 text-slate-400 hover:text-rose-600 hover:bg-white rounded border border-transparent hover:border-slate-100 transition"><Trash2 className="h-3.5 w-3.5" /></button>
+                      </div>
+                    </div>
+
+                    {/* Pairing dropdown */}
+                    <div className="pt-2 border-t border-slate-100/50 flex items-center justify-between gap-2">
+                      <span className="text-[9px] font-bold text-slate-400 tracking-wider">訳文ペアリング:</span>
+                      <select
+                        value={ev.relatedFileId || ''}
+                        onChange={(e) => handlePairFiles(ev.evidenceId, e.target.value)}
+                        className="px-2 py-0.5 border border-slate-200 text-[10px] rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white max-w-[140px]"
+                      >
+                        <option value="">-- 未選択 --</option>
+                        {translatedFiles.map(tf => (
+                          <option key={tf.evidenceId} value={tf.evidenceId}>{tf.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* If paired, show connection info */}
+                    {ev.relatedFileId && (() => {
+                      const pairedFile = translatedFiles.find(tf => tf.evidenceId === ev.relatedFileId);
+                      return pairedFile ? (
+                        <div className="flex items-center gap-1 text-[9px] text-indigo-700 bg-indigo-50 px-2 py-1 rounded-lg">
+                          <CheckCircle2 className="h-3 w-3 shrink-0" />
+                          <span className="truncate">➔ 訳文: {pairedFile.name}</span>
+                        </div>
+                      ) : null;
+                    })()}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Column 2: Translation Progress */}
+          <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm space-y-6">
+            <div className="border-b border-slate-50 pb-2">
+              <h3 className="text-xs font-black text-slate-800 tracking-tight flex items-center gap-1.5">
+                <Clipboard className="h-4 w-4 text-indigo-900" />
+                <span>翻訳進捗管理</span>
+              </h3>
+            </div>
+
+            {/* Language pair layout */}
+            {kase.translationLanguageFrom && (
+              <div className="flex items-center justify-between bg-slate-50/50 p-4 border border-slate-100 rounded-2xl text-center">
+                <div className="flex-1">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">原文</div>
+                  <div className="text-sm font-black text-indigo-950">{kase.translationLanguageFrom}</div>
+                </div>
+                <div className="text-slate-300 font-black text-base shrink-0 mx-2">➔</div>
+                <div className="flex-1">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">訳文</div>
+                  <div className="text-sm font-black text-indigo-950">{kase.translationLanguageTo}</div>
+                </div>
+              </div>
+            )}
+
+            {/* Progress controller */}
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                  <span>翻訳作業進捗率</span>
+                  <span className="text-indigo-900 font-black text-sm">{(kase.translationProgress !== undefined ? kase.translationProgress : kase.progress)}%</span>
+                </div>
+                <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-indigo-900 rounded-full transition-all duration-500"
+                    style={{ width: `${(kase.translationProgress !== undefined ? kase.translationProgress : kase.progress)}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Incremental progress controls */}
+              <div className="grid grid-cols-5 gap-1">
+                {[0, 25, 50, 75, 100].map(val => (
+                  <button
+                    key={val}
+                    onClick={() => handleProgressChange(val)}
+                    className={`py-1 text-[10px] font-bold rounded-lg border transition ${
+                      (kase.translationProgress !== undefined ? kase.translationProgress : kase.progress) === val
+                        ? 'bg-indigo-900 text-white border-indigo-900'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    {val}%
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <hr className="border-slate-100" />
+
+            {/* Structured details (notes & background) */}
+            <div className="space-y-3 text-xs">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">作業メモ・備考</span>
+              <textarea
+                value={consultationContent || ''}
+                onChange={async (e) => {
+                  setConsultationContent(e.target.value);
+                  if (kase) {
+                    await db.cases.update(kase.caseId, { consultationContent: e.target.value });
+                  }
+                }}
+                placeholder="翻訳作業中の注意点や用語辞書、指示内容等を記入してください..."
+                className="w-full px-3 py-2.5 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-xl min-h-[140px] text-xs bg-slate-50/20"
+              />
+            </div>
+          </div>
+
+          {/* Column 3: Translated Documents */}
+          <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm space-y-4">
+            <div className="flex items-center justify-between gap-2 border-b border-slate-50 pb-2">
+              <h3 className="text-xs font-black text-slate-800 tracking-tight flex items-center gap-1.5">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                <span>訳文書リスト ({translatedFiles.length})</span>
+              </h3>
+              
+              {/* Invisible file input */}
+              <input
+                id="translated-file-input"
+                type="file"
+                multiple
+                onChange={(e) => {
+                  if (e.target.files) prepareUpload(Array.from(e.target.files), 'translated');
+                }}
+                className="hidden"
+              />
+              <label
+                htmlFor="translated-file-input"
+                className="cursor-pointer inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600 text-white text-[10px] font-bold rounded-lg hover:bg-emerald-700 transition active:scale-95 shadow-sm"
+              >
+                <Plus className="h-3 w-3" />
+                <span>訳文書を追加</span>
+              </label>
+            </div>
+
+            {/* List */}
+            {translatedFiles.length === 0 ? (
+              <div className="text-center text-slate-400 text-[11px] py-12 border-2 border-dashed border-slate-100 rounded-xl">
+                訳文書がありません。「訳文書を追加」からアップロードしてください。
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+                {translatedFiles.map((ev) => (
+                  <div key={ev.evidenceId} className="p-3 bg-slate-50/50 rounded-xl border border-slate-100 hover:bg-slate-50 transition space-y-2.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-start gap-2 truncate min-w-0">
+                        {getFileIcon(ev.type)}
+                        <div className="truncate min-w-0">
+                          <div className="font-bold text-slate-800 text-xs truncate" title={ev.name}>{ev.name}</div>
+                          <div className="text-[9px] text-slate-400 font-mono">{(ev.size / 1024).toFixed(1)} KB</div>
+                        </div>
+                      </div>
+                      <div className="flex gap-0.5 shrink-0">
+                        <button onClick={() => setPreviewEvidence(ev)} className="p-1 text-slate-400 hover:text-indigo-900 hover:bg-white rounded border border-transparent hover:border-slate-100 transition"><Eye className="h-3.5 w-3.5" /></button>
+                        <button onClick={() => handleDownloadEvidence(ev)} className="p-1 text-slate-400 hover:text-indigo-900 hover:bg-white rounded border border-transparent hover:border-slate-100 transition"><Download className="h-3.5 w-3.5" /></button>
+                        <button onClick={() => handleDeleteEvidence(ev.evidenceId)} className="p-1 text-slate-400 hover:text-rose-600 hover:bg-white rounded border border-transparent hover:border-slate-100 transition"><Trash2 className="h-3.5 w-3.5" /></button>
+                      </div>
+                    </div>
+
+                    {/* Show pairing links if this translated file is related to any original file */}
+                    {(() => {
+                      const relatedOriginals = originalFiles.filter(of => of.relatedFileId === ev.evidenceId);
+                      return relatedOriginals.length > 0 ? (
+                        <div className="space-y-1">
+                          <div className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">ペアリング原文:</div>
+                          {relatedOriginals.map(ro => (
+                            <div key={ro.evidenceId} className="text-[9px] text-slate-500 font-medium truncate flex items-center gap-1 bg-slate-100/50 p-1 rounded">
+                              <span>⬅ {ro.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null;
+                    })()}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Bottom Consultation Timeline */}
+        {sortedConsultations.length > 0 && (
+          <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm space-y-6">
+            <h3 className="text-sm font-black text-slate-800 tracking-tight flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-indigo-900" />
+              <span>相談・連絡履歴タイムライン ({sortedConsultations.length})</span>
+            </h3>
+
+            <div className="space-y-6">
+              {sortedConsultations.map((con) => (
+                <div key={con.consultationId} className="relative pl-6 border-l-2 border-indigo-900/10 py-1">
+                  <div className="absolute left-[-6px] top-2.5 h-3.5 w-3.5 rounded-full bg-indigo-900 flex items-center justify-center border-2 border-white">
+                    <div className="h-1.5 w-1.5 rounded-full bg-white" />
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold text-slate-400 mb-1">
+                    <span className="font-mono">{con.date}</span>
+                    <div className="flex items-center gap-2">
+                      {getMethodBadge(con.method)}
+                      {con.consultant && (
+                        <span className="bg-indigo-50 text-indigo-750 text-indigo-700 px-2 py-0.5 rounded font-bold text-[9px]">
+                          担当: {con.consultant}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <h4 className="font-black text-slate-800 text-xs leading-snug mb-1.5">
+                    {con.summary}
+                  </h4>
+
+                  {con.notes && (
+                    <p className="text-xs text-slate-500 font-medium leading-relaxed bg-slate-50/50 rounded-xl p-3 border border-slate-50">
+                      {con.notes}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
+
+  if (kase.category === '翻訳') {
+    return renderTranslationCase();
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -877,6 +1350,40 @@ export const CaseDetail: React.FC = () => {
                 </div>
               </div>
 
+              {category === '翻訳' && (
+                <div className="grid grid-cols-3 gap-4 bg-slate-50 p-3.5 rounded-xl border border-slate-100/50 animate-fade-in">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">原文言語</label>
+                    <input
+                      type="text"
+                      value={translationLanguageFrom}
+                      onChange={(e) => setTranslationLanguageFrom(e.target.value)}
+                      placeholder="スペイン語"
+                      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">訳文言語</label>
+                    <input
+                      type="text"
+                      value={translationLanguageTo}
+                      onChange={(e) => setTranslationLanguageTo(e.target.value)}
+                      placeholder="日本語"
+                      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">納期</label>
+                    <input
+                      type="date"
+                      value={deadline}
+                      onChange={(e) => setDeadline(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">ステータス</label>
@@ -885,10 +1392,21 @@ export const CaseDetail: React.FC = () => {
                     onChange={(e) => setStatus(e.target.value as any)}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
                   >
-                    <option value="pending">未着手</option>
-                    <option value="in_progress">進行中</option>
-                    <option value="completed">完了</option>
-                    <option value="suspended">保留</option>
+                    {category === '翻訳' ? (
+                      <>
+                        <option value="pending">受付中</option>
+                        <option value="in_progress">翻訳中</option>
+                        <option value="completed">完了</option>
+                        <option value="delivered">納品済み</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="pending">未着手</option>
+                        <option value="in_progress">進行中</option>
+                        <option value="completed">完了</option>
+                        <option value="suspended">保留</option>
+                      </>
+                    )}
                   </select>
                 </div>
                 <div className="space-y-1">

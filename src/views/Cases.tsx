@@ -32,6 +32,9 @@ export const Cases: React.FC = () => {
   const [paymentStatus, setPaymentStatus] = useState<'unpaid' | 'paid' | 'partially_paid'>('unpaid');
   const [status, setStatus] = useState<Case['status']>('pending');
   const [progress, setProgress] = useState<number>(0);
+  const [translationLanguageFrom, setTranslationLanguageFrom] = useState('スペイン語');
+  const [translationLanguageTo, setTranslationLanguageTo] = useState('日本語');
+  const [deadline, setDeadline] = useState('');
 
   const handleAddCase = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,6 +54,10 @@ export const Cases: React.FC = () => {
       paymentStatus,
       status,
       progress,
+      translationLanguageFrom: category === '翻訳' ? translationLanguageFrom : undefined,
+      translationLanguageTo: category === '翻訳' ? translationLanguageTo : undefined,
+      deadline: category === '翻訳' ? deadline : undefined,
+      translationProgress: category === '翻訳' ? progress : undefined,
       createdAt: Date.now(),
       updatedAt: Date.now(),
       syncStatus: 'pending',
@@ -117,6 +124,9 @@ export const Cases: React.FC = () => {
     setPaymentStatus('unpaid');
     setStatus('pending');
     setProgress(0);
+    setTranslationLanguageFrom('スペイン語');
+    setTranslationLanguageTo('日本語');
+    setDeadline('');
     setCurrentCase(null);
   };
 
@@ -346,6 +356,40 @@ export const Cases: React.FC = () => {
                 </div>
               </div>
 
+              {category === '翻訳' && (
+                <div className="grid grid-cols-3 gap-4 bg-slate-50 p-3.5 rounded-xl border border-slate-100/50 animate-fade-in">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">原文言語</label>
+                    <input
+                      type="text"
+                      value={translationLanguageFrom}
+                      onChange={(e) => setTranslationLanguageFrom(e.target.value)}
+                      placeholder="スペイン語"
+                      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">訳文言語</label>
+                    <input
+                      type="text"
+                      value={translationLanguageTo}
+                      onChange={(e) => setTranslationLanguageTo(e.target.value)}
+                      placeholder="日本語"
+                      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">納期</label>
+                    <input
+                      type="date"
+                      value={deadline}
+                      onChange={(e) => setDeadline(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('caseTitle')}</label>
                 <input
@@ -391,10 +435,21 @@ export const Cases: React.FC = () => {
                     onChange={(e) => setStatus(e.target.value as any)}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
                   >
-                    <option value="pending">{t('pending')}</option>
-                    <option value="in_progress">{t('in_progress')}</option>
-                    <option value="completed">{t('completed')}</option>
-                    <option value="suspended">{t('suspended')}</option>
+                    {category === '翻訳' ? (
+                      <>
+                        <option value="pending">受付中</option>
+                        <option value="in_progress">翻訳中</option>
+                        <option value="completed">完了</option>
+                        <option value="delivered">納品済み</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="pending">{t('pending')}</option>
+                        <option value="in_progress">{t('in_progress')}</option>
+                        <option value="completed">{t('completed')}</option>
+                        <option value="suspended">{t('suspended')}</option>
+                      </>
+                    )}
                   </select>
                 </div>
                 <div className="space-y-1">

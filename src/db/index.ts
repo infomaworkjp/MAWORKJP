@@ -27,8 +27,12 @@ export interface Case {
   actionTaken: string; // 対応内容
   fee: number; // 料金
   paymentStatus: 'unpaid' | 'paid' | 'partially_paid'; // 支払状況
-  status: 'pending' | 'in_progress' | 'completed' | 'suspended'; // 進捗状況
+  status: 'pending' | 'in_progress' | 'completed' | 'suspended' | 'delivered'; // 進捗状況 (delivered追加)
   progress: number; // 進捗率 (0-100)
+  translationLanguageFrom?: string; // 原文言語 (翻訳用)
+  translationLanguageTo?: string; // 訳文言語 (翻訳用)
+  deadline?: string; // 納期 (翻訳用)
+  translationProgress?: number; // 翻訳進捗率 (翻訳用)
   createdAt: number;
   updatedAt: number;
   syncStatus: 'pending' | 'synced';
@@ -55,6 +59,8 @@ export interface Evidence {
   size: number; // ファイルサイズ
   fileData?: Blob; // ファイルデータ (BLOB)
   cloudStorageUrl?: string;
+  fileCategory?: 'original' | 'translated' | 'other'; // ファイルカテゴリー (原文書/訳文書/その他)
+  relatedFileId?: string; // 関連するファイルID (原文書に対して訳文書をペアリング)
   createdAt: number;
   syncStatus: 'pending' | 'synced';
 }
