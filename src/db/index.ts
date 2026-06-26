@@ -33,6 +33,27 @@ export interface Case {
   translationLanguageTo?: string; // 訳文言語 (翻訳用)
   deadline?: string; // 納期 (翻訳用)
   translationProgress?: number; // 翻訳進捗率 (翻訳用)
+  
+  // 通訳案件用プロパティ
+  interpretationDate?: string;          // 実施日 (YYYY-MM-DD)
+  interpretationStartTime?: string;     // 開始時刻 (HH:MM)
+  interpretationEndTime?: string;       // 終了時刻 (HH:MM)
+  interpretationLocation?: '対面' | 'オンライン' | '電話'; // 実施場所
+  interpretationType?: '逐次' | '同時' | 'ウィスパリング' | 'その他'; // 通訳種別
+  interpretationStaff?: string;         // 対応担当者
+  interpretationParticipants?: string;  // その他参加者
+  interpretationBillingUnit?: string;   // 時間単位 (1時間 / 30分 など)
+  interpretationBaseRate?: number;      // 基本料金
+  interpretationAdditionalRate?: number;// 加算料金
+  interpretationTotalBilling?: number;  // 請求合計 (基本料金 + 加算料金)
+  interpretationMemo?: string;          // 通訳メモ
+  interpretationGlossary?: string;      // 専門用語リスト
+  interpretationCancelDate?: string;    // キャンセル申請日時
+  interpretationCancelFee?: number;     // キャンセル料金
+  interpretationChangeHistory?: string; // 変更履歴 (JSON配列文字列)
+  interpretationRating?: number;        // 満足度スター評価 (1-5)
+  interpretationRatingFeedback?: string;// フィードバックテキスト
+
   createdAt: number;
   updatedAt: number;
   syncStatus: 'pending' | 'synced';
