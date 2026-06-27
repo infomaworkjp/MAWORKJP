@@ -506,7 +506,8 @@ export const CaseDetail: React.FC = () => {
     );
   };
 
-  const getFileIcon = (type: string) => {
+  const getFileIcon = (type?: string) => {
+    if (!type) return <Paperclip className="h-5 w-5 text-slate-400" />;
     if (type.startsWith('image/')) return <ImageIcon className="h-5 w-5 text-emerald-500" />;
     if (type === 'application/pdf') return <FileText className="h-5 w-5 text-rose-500" />;
     if (type.startsWith('audio/')) return <Music className="h-5 w-5 text-amber-500" />;
@@ -1259,7 +1260,7 @@ export const CaseDetail: React.FC = () => {
   };
 
   const renderInterpretationCase = () => {
-    const sessionAudioFiles = associatedEvidence.filter(ev => ev.type.startsWith('audio/') || ev.type.startsWith('video/'));
+    const sessionAudioFiles = associatedEvidence.filter(ev => ev.type && (ev.type.startsWith('audio/') || ev.type.startsWith('video/')));
     
     let changeHistory: any[] = [];
     try {
@@ -2269,10 +2270,10 @@ export const CaseDetail: React.FC = () => {
 
                 const count = associatedEvidence.filter(ev => {
                   if (tab === 'all') return true;
-                  if (tab === 'image') return ev.type.startsWith('image/');
-                  if (tab === 'audio') return ev.type.startsWith('audio/');
-                  if (tab === 'video') return ev.type.startsWith('video/');
-                  return ev.type === 'application/pdf' || (!ev.type.startsWith('image/') && !ev.type.startsWith('audio/') && !ev.type.startsWith('video/'));
+                  if (tab === 'image') return ev.type?.startsWith('image/');
+                  if (tab === 'audio') return ev.type?.startsWith('audio/');
+                  if (tab === 'video') return ev.type?.startsWith('video/');
+                  return ev.type === 'application/pdf' || (!ev.type?.startsWith('image/') && !ev.type?.startsWith('audio/') && !ev.type?.startsWith('video/'));
                 }).length;
 
                 return (
@@ -2295,10 +2296,10 @@ export const CaseDetail: React.FC = () => {
             {(() => {
               const filteredList = associatedEvidence.filter((ev) => {
                 if (evidenceTab === 'all') return true;
-                if (evidenceTab === 'image') return ev.type.startsWith('image/');
-                if (evidenceTab === 'audio') return ev.type.startsWith('audio/');
-                if (evidenceTab === 'video') return ev.type.startsWith('video/');
-                return ev.type === 'application/pdf' || (!ev.type.startsWith('image/') && !ev.type.startsWith('audio/') && !ev.type.startsWith('video/'));
+                if (evidenceTab === 'image') return ev.type?.startsWith('image/');
+                if (evidenceTab === 'audio') return ev.type?.startsWith('audio/');
+                if (evidenceTab === 'video') return ev.type?.startsWith('video/');
+                return ev.type === 'application/pdf' || (!ev.type?.startsWith('image/') && !ev.type?.startsWith('audio/') && !ev.type?.startsWith('video/'));
               });
 
               if (filteredList.length === 0) {
@@ -2869,22 +2870,22 @@ export const CaseDetail: React.FC = () => {
 
             {/* Preview Area */}
             <div className="flex-1 bg-slate-900 flex items-center justify-center overflow-hidden p-4">
-              {previewEvidence.type.startsWith('image/') && (
+              {previewEvidence.type?.startsWith('image/') && (
                 <img src={previewUrl} alt={previewEvidence.name} className="max-w-full max-h-full object-contain rounded" />
               )}
               {previewEvidence.type === 'application/pdf' && (
                 <iframe src={previewUrl} title={previewEvidence.name} className="w-full h-full border-0 rounded bg-white" />
               )}
-              {previewEvidence.type.startsWith('audio/') && (
+              {previewEvidence.type?.startsWith('audio/') && (
                 <audio src={previewUrl} controls className="w-full max-w-md bg-white rounded-lg p-2" />
               )}
-              {previewEvidence.type.startsWith('video/') && (
+              {previewEvidence.type?.startsWith('video/') && (
                 <video src={previewUrl} controls className="max-w-full max-h-full rounded" />
               )}
-              {!previewEvidence.type.startsWith('image/') &&
+              {!previewEvidence.type?.startsWith('image/') &&
                previewEvidence.type !== 'application/pdf' &&
-               !previewEvidence.type.startsWith('audio/') &&
-               !previewEvidence.type.startsWith('video/') && (
+               !previewEvidence.type?.startsWith('audio/') &&
+               !previewEvidence.type?.startsWith('video/') && (
                 <div className="text-center text-white space-y-3">
                   <HelpCircle className="h-12 w-12 text-slate-500 mx-auto" />
                   <p className="text-xs">このファイル形式のプレビューはブラウザでサポートされていません。</p>
