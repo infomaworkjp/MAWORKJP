@@ -428,7 +428,17 @@ export const CaseDetail: React.FC = () => {
     );
   }
 
-  const sortedConsultations = [...associatedConsultations].sort((a, b) => b.date.localeCompare(a.date));
+  const sortedConsultations = [...associatedConsultations].sort((a, b) => {
+    const dateA = a.date || '';
+    const dateB = b.date || '';
+    return dateB.localeCompare(dateA);
+  });
+
+  const safeFormatDate = (timestamp?: number) => {
+    if (!timestamp) return '不明';
+    const date = new Date(timestamp);
+    return isNaN(date.getTime()) ? '不明' : date.toLocaleDateString();
+  };
 
   const getStatusBadge = (stat: Case['status']) => {
     switch (stat) {
@@ -627,7 +637,7 @@ export const CaseDetail: React.FC = () => {
                 </div>
                 <div>
                   <span className="text-slate-400">依頼日: </span>
-                  <span className="font-semibold">{new Date(kase.createdAt).toLocaleDateString()}</span>
+                  <span className="font-semibold">{safeFormatDate(kase.createdAt)}</span>
                 </div>
                 {kase.deadline && (
                   <div>
@@ -1264,7 +1274,8 @@ export const CaseDetail: React.FC = () => {
     
     let changeHistory: any[] = [];
     try {
-      changeHistory = JSON.parse(kase.interpretationChangeHistory || '[]');
+      const parsed = JSON.parse(kase.interpretationChangeHistory || '[]');
+      changeHistory = Array.isArray(parsed) ? parsed : [];
     } catch (e) {
       changeHistory = [];
     }
@@ -1322,7 +1333,7 @@ export const CaseDetail: React.FC = () => {
                 </div>
                 <div>
                   <span className="text-slate-400">依頼日: </span>
-                  <span className="font-semibold">{new Date(kase.createdAt).toLocaleDateString()}</span>
+                  <span className="font-semibold">{safeFormatDate(kase.createdAt)}</span>
                 </div>
                 {kase.interpretationDate && (
                   <div>
