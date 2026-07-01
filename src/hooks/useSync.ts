@@ -57,6 +57,19 @@ export function useSync() {
 
         const uid = currentUser.uid;
 
+        // Force re-sync of legacy mock data when switching to real firebase mode
+        const hasResetSyncStatus = localStorage.getItem('syncStatusReset_v1');
+        if (!hasResetSyncStatus) {
+          console.log('[Sync] Resetting syncStatus of local data to force upload to Real Firebase...');
+          await db.transaction('rw', [db.customers, db.cases, db.consultations, db.evidenceFiles], async () => {
+            await db.customers.toCollection().modify({ syncStatus: 'pending' });
+            await db.cases.toCollection().modify({ syncStatus: 'pending' });
+            await db.consultations.toCollection().modify({ syncStatus: 'pending' });
+            await db.evidenceFiles.toCollection().modify({ syncStatus: 'pending' });
+          });
+          localStorage.setItem('syncStatusReset_v1', 'true');
+        }
+
         // 1. Sync Up Customers
         const pendingCustomers = await db.customers.where('syncStatus').equals('pending').toArray();
         for (const customer of pendingCustomers) {
