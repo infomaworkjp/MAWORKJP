@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { db } from '../db';
 import { auth, rtdb, storage, isMockMode } from '../lib/firebase';
-import { ref, set } from 'firebase/database';
+import { ref, set, get } from 'firebase/database';
 import { ref as sRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { useAuth } from '../context/AuthContext';
 
 export function useSync() {
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
@@ -10,6 +11,7 @@ export function useSync() {
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(
     localStorage.getItem('lastSyncedAt')
   );
+  const { user } = useAuth();
 
   // Monitor network status
   useEffect(() => {
@@ -55,7 +57,7 @@ export function useSync() {
 
         const uid = currentUser.uid;
 
-        // 1. Sync Customers
+        // 1. Sync Up Customers
         const pendingCustomers = await db.customers.where('syncStatus').equals('pending').toArray();
         for (const customer of pendingCustomers) {
           if (!rtdb) continue;
@@ -67,7 +69,7 @@ export function useSync() {
           await db.customers.update(customer.customerId, { syncStatus: 'synced' });
         }
 
-        // 2. Sync Cases
+        // 2. Sync Up Cases
         const pendingCases = await db.cases.where('syncStatus').equals('pending').toArray();
         for (const kase of pendingCases) {
           if (!rtdb) continue;
@@ -79,7 +81,7 @@ export function useSync() {
           await db.cases.update(kase.caseId, { syncStatus: 'synced' });
         }
 
-        // 3. Sync Consultations
+        // 3. Sync Up Consultations
         const pendingConsultations = await db.consultations.where('syncStatus').equals('pending').toArray();
         for (const consultation of pendingConsultations) {
           if (!rtdb) continue;
@@ -91,7 +93,7 @@ export function useSync() {
           await db.consultations.update(consultation.consultationId, { syncStatus: 'synced' });
         }
 
-        // 4. Sync Evidence Files
+        // 4. Sync Up Evidence Files
         const pendingEvidence = await db.evidenceFiles.where('syncStatus').equals('pending').toArray();
         for (const ev of pendingEvidence) {
           let downloadUrl = ev.cloudStorageUrl || '';
@@ -124,7 +126,65 @@ export function useSync() {
           }
         }
 
-        console.log('[Sync] Real synchronization complete!');
+        // 5. Sync Down Customers
+        if (rtdb) {
+          const customersRef = ref(rtdb, `users/${uid}/customers`);
+          const customersSnapshot = await get(customersRef);
+          if (customersSnapshot.exists()) {
+            const remoteCustomers = customersSnapshot.val();
+            for (const key of Object.keys(remoteCustomers)) {
+              const remoteCustomer = remoteCustomers[key];
+              const localCustomer = await db.customers.get(remoteCustomer.customerId);
+              if (!localCustomer || localCustomer.syncStatus !== 'pending') {
+                await db.customers.put({ ...remoteCustomer, syncStatus: 'synced' });
+              }
+            }
+          }
+
+          // 6. Sync Down Cases
+          const casesRef = ref(rtdb, `users/${uid}/cases`);
+          const casesSnapshot = await get(casesRef);
+          if (casesSnapshot.exists()) {
+            const remoteCases = casesSnapshot.val();
+            for (const key of Object.keys(remoteCases)) {
+              const remoteCase = remoteCases[key];
+              const localCase = await db.cases.get(remoteCase.caseId);
+              if (!localCase || localCase.syncStatus !== 'pending') {
+                await db.cases.put({ ...remoteCase, syncStatus: 'synced' });
+              }
+            }
+          }
+
+          // 7. Sync Down Consultations
+          const consultationsRef = ref(rtdb, `users/${uid}/consultations`);
+          const consultationsSnapshot = await get(consultationsRef);
+          if (consultationsSnapshot.exists()) {
+            const remoteConsultations = consultationsSnapshot.val();
+            for (const key of Object.keys(remoteConsultations)) {
+              const remoteConsultation = remoteConsultations[key];
+              const localConsultation = await db.consultations.get(remoteConsultation.consultationId);
+              if (!localConsultation || localConsultation.syncStatus !== 'pending') {
+                await db.consultations.put({ ...remoteConsultation, syncStatus: 'synced' });
+              }
+            }
+          }
+
+          // 8. Sync Down Evidence metadata
+          const evidenceRef = ref(rtdb, `users/${uid}/evidence`);
+          const evidenceSnapshot = await get(evidenceRef);
+          if (evidenceSnapshot.exists()) {
+            const remoteEvidences = evidenceSnapshot.val();
+            for (const key of Object.keys(remoteEvidences)) {
+              const remoteEvidence = remoteEvidences[key];
+              const localEvidence = await db.evidenceFiles.get(remoteEvidence.evidenceId);
+              if (!localEvidence || localEvidence.syncStatus !== 'pending') {
+                await db.evidenceFiles.put({ ...remoteEvidence, syncStatus: 'synced' });
+              }
+            }
+          }
+        }
+
+        console.log('[Sync] Real synchronization complete (Sync Up & Sync Down)!');
       }
 
       const timestamp = new Date().toLocaleString();
@@ -135,14 +195,14 @@ export function useSync() {
     } finally {
       setIsSyncing(false);
     }
-  }, [isOnline, isSyncing]);
+  }, [isOnline, isSyncing, user]);
 
-  // Auto-sync when online
+  // Auto-sync when online and user is logged in
   useEffect(() => {
-    if (isOnline) {
+    if (isOnline && user) {
       syncData();
     }
-  }, [isOnline, syncData]);
+  }, [isOnline, user, syncData]);
 
   return {
     isOnline,
